@@ -181,16 +181,42 @@ leaveRoomBtn.addEventListener("click", () => {
 // NETWORK INITIALIZATION & JOINING
 // ===================================================
 
-lobbyStatusEl.textContent = "Connecting to room...";
+const isHostParam = urlParams.get("host") === "true";
+let hostSettings = {};
+try {
+    const raw = sessionStorage.getItem("nostalgia_host_settings");
+    if (raw) hostSettings = JSON.parse(raw);
+} catch (e) {}
 
-// Emit joinRoom on startup
-setTimeout(() => {
-    net.emit("joinRoom", {
-        roomCode: roomCode,
-        playerName: playerName,
-        avatar: playerAvatar
-    });
-}, 200);
+if (isHostParam) {
+    lobbyStatusEl.textContent = "Creating and hosting room...";
+    setTimeout(() => {
+        net.emit("createRoom", {
+            roomCode: roomCode,
+            playerName: playerName,
+            avatar: playerAvatar,
+            category: hostSettings.category || "random",
+            timerSeconds: hostSettings.timerSeconds || 0,
+            mode: hostSettings.mode || "standard"
+        });
+    }, 150);
+} else {
+    lobbyStatusEl.textContent = "Connecting to room...";
+    setTimeout(() => {
+        net.emit("joinRoom", {
+            roomCode: roomCode,
+            playerName: playerName,
+            avatar: playerAvatar
+        });
+    }, 150);
+}
+
+net.on("roomCreated", (data) => {
+    if (data && data.roomCode) {
+        headerRoomCodeEl.textContent = data.roomCode;
+        lobbyRoomCodeEl.textContent = data.roomCode;
+    }
+});
 
 net.on("joinError", (err) => {
     alert(err);
@@ -207,6 +233,10 @@ net.on("roomError", (err) => {
 // ===================================================
 
 net.on("roomUpdated", (state) => {
+    if (state && state.roomCode) {
+        headerRoomCodeEl.textContent = state.roomCode;
+        lobbyRoomCodeEl.textContent = state.roomCode;
+    }
     currentRoomState = state;
     renderRoom(state);
 });

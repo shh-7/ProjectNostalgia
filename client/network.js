@@ -41,12 +41,12 @@ class NetworkAdapter {
 
         if (isStaticHost || typeof io === "undefined") {
             this.mode = "webrtc";
-            console.log("[Network] Static hosting detected (GitHub Pages). Using PeerJS WebRTC P2P.");
+            console.log("[Network] GitHub Pages / Static hosting detected. Operating in WebRTC Serverless P2P mode.");
         } else {
             try {
                 this.socket = io({
                     reconnectionAttempts: 2,
-                    timeout: 2500
+                    timeout: 2000
                 });
 
                 this.socket.on("connect", () => {
@@ -56,12 +56,11 @@ class NetworkAdapter {
 
                 this.socket.on("connect_error", () => {
                     if (this.mode === "detecting") {
-                        console.warn("[Network] Socket.IO connection failed. Switching to PeerJS WebRTC fallback.");
+                        console.warn("[Network] Socket.IO connection unavailable. Switching to WebRTC P2P mode.");
                         this.mode = "webrtc";
                     }
                 });
 
-                // Forward incoming socket events to listeners
                 const socketEvents = [
                     "roomCreated", "roomJoined", "roomUpdated", "gameStarted",
                     "guessResult", "turnNotice", "playerJoinedAnnouncement",
@@ -89,7 +88,6 @@ class NetworkAdapter {
 
     // ===============================================
     // WEBRTC SERVERLESS P2P IMPLEMENTATION
-    // (Enables 100% online multiplayer on GitHub Pages)
     // ===============================================
 
     getPeerPrefix(code) {
@@ -125,7 +123,6 @@ class NetworkAdapter {
         }
     }
 
-    // Helper: generate 5-character code
     generateCode() {
         const chars = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
         let c = "";
@@ -135,7 +132,7 @@ class NetworkAdapter {
 
     webrtcCreateRoom(payload) {
         this.isHost = true;
-        const code = this.generateCode();
+        const code = (payload.roomCode || this.generateCode()).trim().toUpperCase();
         this.roomCode = code;
         const peerId = this.getPeerPrefix(code);
 
@@ -144,52 +141,72 @@ class NetworkAdapter {
 
     initHostPeer(peerId, payload, code) {
         if (typeof Peer === "undefined") {
-            alert("WebRTC PeerJS library failed to load. Please check internet connection.");
+            alert("PeerJS library is loading. Please try again in a moment.");
             return;
         }
 
-        this.peer = new Peer(peerId, { debug: 1 });
-
-        this.peer.on("open", (id) => {
-            console.log("[WebRTC Host] Room opened with Peer ID:", id);
-
-            this.roomState = {
-                roomCode: code,
-                category: payload.category || "random",
-                mode: payload.mode || "standard",
-                timerSeconds: parseInt(payload.timerSeconds, 10) || 0,
-                gameState: "lobby",
-                roundNumber: 0,
-                hostId: "host",
-                players: [
-                    {
-                        id: "host",
-                        name: (payload.playerName || "Player 1").substring(0, 20),
-                        avatar: payload.avatar || "👾",
-                        score: 0,
-                        roundsWon: 0,
-                        isHost: true
-                    }
-                ],
-                game: null,
-                chatMessages: []
-            };
-
-            this.emitEvent("roomCreated", { roomCode: code, playerName: payload.playerName });
-            this.emitEvent("roomUpdated", this.getSanitizedState());
-        });
-
-        this.peer.on("connection", (conn) => {
-            this.setupHostConnection(conn);
-        });
-
-        this.peer.on("error", (err) => {
-            console.error("[WebRTC Host Error]", err);
-            if (err.type === "unavailable-id") {
-                // Retry with new code
-                this.webrtcCreateRoom(payload);
+        try {
+            if (this.peer) {
+                try { this.peer.destroy(); } catch (e) {}
             }
-        });
+
+            this.peer = new Peer(peerId, {
+                host: "0.peerjs.com",
+                port: 443,
+                path: "/",
+                secure: true,
+                debug: 1
+            });
+
+            this.peer.on("open", (id) => {
+                console.log("[WebRTC Host] Room opened with Peer ID:", id);
+
+                this.roomState = {
+                    roomCode: code,
+                    category: payload.category || "random",
+                    mode: payload.mode || "standard",
+                    timerSeconds: parseInt(payload.timerSeconds, 10) || 0,
+                    gameState: "lobby",
+                    roundNumber: 0,
+                    hostId: "host",
+                    players: [
+                        {
+                            id: "host",
+                            name: (payload.playerName || "Player 1").substring(0, 20),
+                            avatar: payload.avatar || "👾",
+                            score: 0,
+                            roundsWon: 0,
+                            isHost: true
+                        }
+                    ],
+                    game: null,
+                    chatMessages: []
+                };
+
+                this.emitEvent("roomCreated", { roomCode: code, playerName: payload.playerName });
+                this.emitEvent("roomUpdated", this.getSanitizedState());
+            });
+
+            this.peer.on("connection", (conn) => {
+                this.setupHostConnection(conn);
+            });
+
+            this.peer.on("error", (err) => {
+                console.error("[WebRTC Host Error]", err);
+                if (err.type === "unavailable-id") {
+                    // ID taken, generate new code and update URL
+                    const newCode = this.generateCode();
+                    this.roomCode = newCode;
+                    if (window.history && window.history.replaceState) {
+                        window.history.replaceState({}, '', `?code=${newCode}&host=true`);
+                    }
+                    this.webrtcCreateRoom({ ...payload, roomCode: newCode });
+                }
+            });
+
+        } catch (e) {
+            console.error("[WebRTC Init Error]", e);
+        }
     }
 
     setupHostConnection(conn) {
@@ -267,37 +284,83 @@ class NetworkAdapter {
         const hostPeerId = this.getPeerPrefix(code);
 
         if (typeof Peer === "undefined") {
-            alert("WebRTC PeerJS library failed to load. Please check internet connection.");
+            alert("PeerJS library is loading. Please try again in a moment.");
             return;
         }
 
-        this.peer = new Peer({ debug: 1 });
+        try {
+            if (this.peer) {
+                try { this.peer.destroy(); } catch (e) {}
+            }
 
-        this.peer.on("open", () => {
-            console.log("[WebRTC Guest] Connecting to Host Peer:", hostPeerId);
-            const conn = this.peer.connect(hostPeerId, { reliable: true });
+            this.peer = new Peer({
+                host: "0.peerjs.com",
+                port: 443,
+                path: "/",
+                secure: true,
+                debug: 1
+            });
 
-            conn.on("open", () => {
-                this.connToHost = conn;
-                conn.send({
-                    type: "guestJoin",
-                    playerName: payload.playerName,
-                    avatar: payload.avatar
+            let retryCount = 0;
+            const maxRetries = 3;
+
+            const connectToHost = () => {
+                console.log(`[WebRTC Guest] Attempting connection to Host Peer (${hostPeerId}). Attempt ${retryCount + 1}/${maxRetries}`);
+                const conn = this.peer.connect(hostPeerId, { reliable: true });
+
+                let connected = false;
+
+                conn.on("open", () => {
+                    connected = true;
+                    this.connToHost = conn;
+                    console.log("[WebRTC Guest] Connected to host successfully!");
+                    conn.send({
+                        type: "guestJoin",
+                        playerName: payload.playerName,
+                        avatar: payload.avatar
+                    });
                 });
+
+                conn.on("data", (data) => {
+                    this.handleGuestReceivedData(data);
+                });
+
+                conn.on("close", () => {
+                    console.log("[WebRTC Guest] Connection to host closed");
+                });
+
+                conn.on("error", (err) => {
+                    console.error("[WebRTC Guest Conn Error]", err);
+                });
+
+                // If not connected after 2.5s, retry
+                setTimeout(() => {
+                    if (!connected && retryCount < maxRetries) {
+                        retryCount++;
+                        connectToHost();
+                    } else if (!connected) {
+                        this.emitEvent("joinError", `Could not find room "${code}". Make sure your friend has the room open!`);
+                    }
+                }, 2500);
+            };
+
+            this.peer.on("open", () => {
+                connectToHost();
             });
 
-            conn.on("data", (data) => {
-                this.handleGuestReceivedData(data);
+            this.peer.on("error", (err) => {
+                console.error("[WebRTC Guest Peer Error]", err);
+                if (err.type === "peer-unavailable" && retryCount < maxRetries) {
+                    retryCount++;
+                    setTimeout(connectToHost, 1500);
+                } else {
+                    this.emitEvent("joinError", `Could not locate room "${code}". Make sure your friend has the room open!`);
+                }
             });
 
-            conn.on("error", (err) => {
-                this.emitEvent("joinError", "Failed to connect to room. Check code.");
-            });
-        });
-
-        this.peer.on("error", (err) => {
-            this.emitEvent("joinError", "Could not locate room. Verify room code.");
-        });
+        } catch (e) {
+            console.error("[WebRTC Join Init Error]", e);
+        }
     }
 
     handleGuestReceivedData(data) {

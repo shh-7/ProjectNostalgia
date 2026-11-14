@@ -257,13 +257,13 @@ function initNewRound(room, customWord = null, customHint = null) {
 // Socket.IO event handling
 io.on("connection", (socket) => {
     // CREATE ROOM
-    socket.on("createRoom", ({ playerName, avatar, category, timerSeconds, mode }) => {
+    socket.on("createRoom", ({ roomCode, playerName, avatar, category, timerSeconds, mode }) => {
         const safeName = (playerName || "Player 1").trim().substring(0, 20);
         const safeAvatar = avatar || "👾";
-        const roomCode = generateRoomCode();
+        const code = (roomCode || generateRoomCode()).trim().toUpperCase();
 
-        rooms[roomCode] = {
-            code: roomCode,
+        rooms[code] = {
+            code: code,
             hostId: socket.id,
             category: category || "random",
             mode: mode || "standard",
@@ -285,17 +285,17 @@ io.on("connection", (socket) => {
         };
 
         metrics.totalRoomsCreated += 1;
-        socket.join(roomCode);
-        socket.currentRoom = roomCode;
+        socket.join(code);
+        socket.currentRoom = code;
 
-        console.log(`[Room Created] ${roomCode} by ${safeName} (${safeAvatar})`);
+        console.log(`[Room Created] ${code} by ${safeName} (${safeAvatar})`);
 
         socket.emit("roomCreated", {
-            roomCode,
+            roomCode: code,
             playerName: safeName
         });
 
-        io.to(roomCode).emit("roomUpdated", getSanitizedRoomState(rooms[roomCode]));
+        io.to(code).emit("roomUpdated", getSanitizedRoomState(rooms[code]));
     });
 
     // JOIN ROOM

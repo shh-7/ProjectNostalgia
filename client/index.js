@@ -219,6 +219,13 @@ customDuelBtn.addEventListener("click", () => {
     openModal(createRoomModal);
 });
 
+function generateRoomCode() {
+    const chars = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
+    let c = "";
+    for (let i = 0; i < 5; i++) c += chars.charAt(Math.floor(Math.random() * chars.length));
+    return c;
+}
+
 // Create Room Modal
 openCreateRoomBtn.addEventListener("click", () => {
     roomModeSelect.value = "standard";
@@ -227,20 +234,15 @@ openCreateRoomBtn.addEventListener("click", () => {
 
 confirmCreateRoomBtn.addEventListener("click", () => {
     if (window.soundFX) window.soundFX.playClick();
-    confirmCreateRoomBtn.disabled = true;
-    confirmCreateRoomBtn.textContent = "Creating...";
+    const roomCode = generateRoomCode();
 
-    net.emit("createRoom", {
-        playerName: playerProfile.name,
-        avatar: playerProfile.avatar,
+    sessionStorage.setItem("nostalgia_host_settings", JSON.stringify({
         category: roomCategorySelect.value,
         timerSeconds: roomTimerSelect.value,
         mode: roomModeSelect.value
-    });
-});
+    }));
 
-net.on("roomCreated", (data) => {
-    window.location.href = `room.html?code=${data.roomCode}`;
+    window.location.href = `room.html?code=${roomCode}&host=true`;
 });
 
 // Join Room Modal
