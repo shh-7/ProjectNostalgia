@@ -4,71 +4,378 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-
-    <title>Project Nostalgia</title>
-
+    <title>Project Nostalgia - Retro Childhood Games Online</title>
     <link rel="stylesheet" href="index.css">
+    <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🕹️</text></svg>">
 </head>
 
-<body>
+<body class="theme-paper">
 
-    <main class="home-container">
+    <!-- TOP SITE HEADER / NAVBAR -->
+    <header class="site-header">
+        <div class="nav-container">
+            <div class="brand">
+                <span class="brand-mascot">🕹️</span>
+                <div class="brand-text">
+                    <span class="brand-title">PROJECT NOSTALGIA</span>
+                    <span class="brand-badge">ARCADE WEB</span>
+                </div>
+            </div>
 
-        <header class="hero">
-            <h1>PROJECT NOSTALGIA</h1>
-            <p>Childhood games. Online again.</p>
-        </header>
+            <div class="nav-actions">
+                <!-- Player Profile Pill -->
+                <button class="nav-pill player-pill" id="playerProfileBtn" title="Customize Profile & Avatar">
+                    <span class="player-avatar-badge" id="navAvatar">👾</span>
+                    <span class="player-name-badge" id="navPlayerName">Player</span>
+                    <span class="pill-edit-icon">✎</span>
+                </button>
 
+                <!-- How to Play -->
+                <button class="nav-icon-btn" id="howToPlayBtn" title="How to Play">
+                    <span>📖</span>
+                </button>
 
-        <section class="menu">
+                <!-- Lifetime Stats -->
+                <button class="nav-icon-btn" id="statsBtn" title="View Statistics">
+                    <span>📊</span>
+                </button>
 
-            <button class="menu-card" id="gameNameButton">
-                <span class="icon">🎮</span>
+                <!-- Theme Toggle -->
+                <button class="nav-icon-btn" id="themeToggleBtn" title="Toggle Theme (Paper / Midnight)">
+                    <span id="themeIcon">🌓</span>
+                </button>
 
-                <span class="card-content">
-                    <strong>GAME NAME</strong>
-                    <small>Choose your player name</small>
-                </span>
+                <!-- Sound FX Toggle -->
+                <button class="nav-icon-btn" id="audioToggleBtn" title="Toggle Sound FX">
+                    <span id="audioIcon">🔊</span>
+                </button>
+            </div>
+        </div>
+    </header>
 
-                <span class="arrow">→</span>
-            </button>
+    <main class="page-container">
 
+        <!-- HERO SECTION -->
+        <section class="hero-section">
+            <div class="live-pill">
+                <span class="live-dot"></span>
+                <span id="onlineStatus">Online Multiplayer • 120+ Curated Nostalgia Words</span>
+            </div>
+            <h1 class="hero-title">CHILDHOOD GAMES.<br><span class="highlight">ONLINE AGAIN.</span></h1>
+            <p class="hero-subtitle">
+                Rediscover the paper games and school-desk battles of the 90s & 2000s.
+                Play head-to-head with friends or test your memory solo.
+            </p>
+        </section>
 
-            <button class="menu-card" id="createRoomButton">
-                <span class="icon">🏠</span>
+        <!-- MAIN GAME HUB -->
+        <section class="game-hub">
 
-                <span class="card-content">
-                    <strong>CREATE ROOM</strong>
-                    <small>Start a new game</small>
-                </span>
+            <!-- 1. MULTIPLAYER ROOM (PRIMARY) -->
+            <div class="game-card featured-card">
+                <div class="card-tag">MULTIPLAYER 1V1</div>
+                <div class="card-icon">⚔️</div>
+                <div class="card-body">
+                    <h2>Classic Hangman Duel</h2>
+                    <p>Real-time turn-based multiplayer. Create a private room, send the link to a friend, and race to guess the word!</p>
+                    
+                    <div class="card-meta">
+                        <span>👥 2 Players</span>
+                        <span>⏱️ Turn Timer Option</span>
+                        <span>📼 6 Themes</span>
+                    </div>
 
-                <span class="arrow">→</span>
-            </button>
+                    <div class="card-actions">
+                        <button class="btn-primary" id="openCreateRoomBtn">
+                            🏠 Create Room
+                        </button>
+                        <button class="btn-secondary" id="openJoinRoomBtn">
+                            🔗 Join With Code
+                        </button>
+                    </div>
+                </div>
+            </div>
 
+            <!-- 2. SOLO PRACTICE MODE -->
+            <div class="game-card">
+                <div class="card-tag">SINGLE PLAYER</div>
+                <div class="card-icon">⚡</div>
+                <div class="card-body">
+                    <h2>Solo Practice & Streak</h2>
+                    <p>Instant play with zero waiting. Pick your category, test your nostalgia memory, and build an unbroken winning streak.</p>
+                    
+                    <div class="card-meta">
+                        <span>👤 1 Player</span>
+                        <span>💡 Nostalgia Hints</span>
+                        <span>🔥 Streak Counter</span>
+                    </div>
 
-            <button class="menu-card" id="joinRoomButton">
-                <span class="icon">🔗</span>
+                    <div class="card-actions">
+                        <button class="btn-primary" id="soloPlayBtn">
+                            ⚡ Play Solo Now
+                        </button>
+                    </div>
+                </div>
+            </div>
 
-                <span class="card-content">
-                    <strong>JOIN ROOM</strong>
-                    <small>Enter a friend's room</small>
-                </span>
+            <!-- 3. DAILY NOSTALGIA CHALLENGE -->
+            <div class="game-card daily-card">
+                <div class="card-tag">DAILY CHALLENGE</div>
+                <div class="card-icon">📅</div>
+                <div class="card-body">
+                    <h2>Daily Word of the Day</h2>
+                    <p>One secret nostalgia word every day for everyone worldwide. Can you solve today's riddle without losing lives?</p>
+                    
+                    <div class="card-meta">
+                        <span id="dailyDateText">📅 Today's Word</span>
+                        <span id="dailyCategoryText">📼 Nostalgia</span>
+                    </div>
 
-                <span class="arrow">→</span>
-            </button>
+                    <div class="card-actions">
+                        <button class="btn-primary" id="dailyPlayBtn">
+                            🎯 Play Today's Daily
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 4. CUSTOM WORD DUEL -->
+            <div class="game-card">
+                <div class="card-tag">CREATIVE DUEL</div>
+                <div class="card-icon">✍️</div>
+                <div class="card-body">
+                    <h2>Custom Word Creator</h2>
+                    <p>Write your own secret word and clue for your friend to solve! Exactly how you used to play in school notebooks.</p>
+                    
+                    <div class="card-meta">
+                        <span>🤫 Secret Clues</span>
+                        <span>📝 Custom Words</span>
+                    </div>
+
+                    <div class="card-actions">
+                        <button class="btn-secondary" id="customDuelBtn">
+                            ✏️ Create Custom Duel
+                        </button>
+                    </div>
+                </div>
+            </div>
 
         </section>
 
-
-        <footer>
-            <p>Project Nostalgia © 2026</p>
-        </footer>
+        <!-- COMING SOON ARCADE VAULT -->
+        <section class="arcade-vault">
+            <div class="vault-header">
+                <h3>🕹️ MORE NOSTALGIC GAMES COMING TO THE ARCADE</h3>
+                <p>We are porting more childhood classics to modern real-time WebSockets.</p>
+            </div>
+            <div class="vault-grid">
+                <div class="vault-item">
+                    <span class="vault-icon">⭕❌</span>
+                    <strong>Ultimate Tic-Tac-Toe</strong>
+                    <small>Turn-based board battles</small>
+                </div>
+                <div class="vault-item">
+                    <span class="vault-icon">🚢</span>
+                    <strong>Battleship Grid</strong>
+                    <small>Coordinates & naval strikes</small>
+                </div>
+                <div class="vault-item">
+                    <span class="vault-icon">⚄</span>
+                    <strong>Dots & Boxes</strong>
+                    <small>Notebook territory war</small>
+                </div>
+            </div>
+        </section>
 
     </main>
 
+    <!-- FOOTER -->
+    <footer class="site-footer">
+        <div class="footer-container">
+            <div class="footer-left">
+                <strong>Project Nostalgia</strong> • Childhood games. Online again.
+                <p>Hand-crafted with vanilla web technologies, Web Audio, and WebSockets.</p>
+            </div>
+            <div class="footer-shortcuts">
+                <span>SHORTCUTS: <kbd>A</kbd>-<kbd>Z</kbd> Guess • <kbd>ESC</kbd> Close Modals • <kbd>ENTER</kbd> Confirm</span>
+            </div>
+        </div>
+    </footer>
 
+    <!-- ==============================================
+         MODALS
+    =============================================== -->
+
+    <!-- 1. Player Profile & Avatar Modal -->
+    <div class="modal-overlay" id="profileModal" style="display: none;">
+        <div class="modal-box">
+            <div class="modal-header">
+                <h3>Player Profile</h3>
+                <button class="modal-close-btn" data-close="profileModal">×</button>
+            </div>
+            <div class="modal-body">
+                <label>CHOOSE YOUR RETRO AVATAR:</label>
+                <div class="avatar-grid" id="avatarPicker">
+                    <button class="avatar-option" data-avatar="👾">👾</button>
+                    <button class="avatar-option" data-avatar="🕹️">🕹️</button>
+                    <button class="avatar-option" data-avatar="📼">📼</button>
+                    <button class="avatar-option" data-avatar="🐱">🐱</button>
+                    <button class="avatar-option" data-avatar="🚀">🚀</button>
+                    <button class="avatar-option" data-avatar="🤠">🤠</button>
+                    <button class="avatar-option" data-avatar="🍕">🍕</button>
+                    <button class="avatar-option" data-avatar="🎸">🎸</button>
+                    <button class="avatar-option" data-avatar="🦊">🦊</button>
+                    <button class="avatar-option" data-avatar="🤖">🤖</button>
+                    <button class="avatar-option" data-avatar="🎮">🎮</button>
+                    <button class="avatar-option" data-avatar="⚡">⚡</button>
+                </div>
+
+                <label for="profileNameInput">YOUR PLAYER HANDLE:</label>
+                <input type="text" id="profileNameInput" maxlength="20" placeholder="Enter name...">
+            </div>
+            <div class="modal-actions">
+                <button class="btn-secondary" data-close="profileModal">Cancel</button>
+                <button class="btn-primary" id="saveProfileBtn">Save Profile</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- 2. Create Room Modal -->
+    <div class="modal-overlay" id="createRoomModal" style="display: none;">
+        <div class="modal-box">
+            <div class="modal-header">
+                <h3>Host a Multiplayer Room</h3>
+                <button class="modal-close-btn" data-close="createRoomModal">×</button>
+            </div>
+            <div class="modal-body">
+                <label for="roomCategorySelect">WORD THEME:</label>
+                <select id="roomCategorySelect" class="form-select">
+                    <option value="random">🎲 Random Mix (Surprise!)</option>
+                    <option value="nostalgia">📼 90s & 2000s Nostalgia</option>
+                    <option value="videogames">🕹️ Classic Video Games</option>
+                    <option value="cartoons">📺 Cartoons & Movies</option>
+                    <option value="tech">💾 Retro Tech & Computing</option>
+                    <option value="treats">🍭 Childhood Treats & Snacks</option>
+                    <option value="animals">🐾 Animals & Nature</option>
+                </select>
+
+                <label for="roomTimerSelect">TURN TIMER:</label>
+                <select id="roomTimerSelect" class="form-select">
+                    <option value="0">⏱️ Relaxed (No Timer)</option>
+                    <option value="30">⚡ 30 Seconds Blitz</option>
+                    <option value="45">⏱️ 45 Seconds Normal</option>
+                </select>
+
+                <label for="roomModeSelect">GAME MODE:</label>
+                <select id="roomModeSelect" class="form-select">
+                    <option value="standard">📖 Standard Word Bank</option>
+                    <option value="custom">✍️ Custom Word Duel (You write words)</option>
+                </select>
+            </div>
+            <div class="modal-actions">
+                <button class="btn-secondary" data-close="createRoomModal">Cancel</button>
+                <button class="btn-primary" id="confirmCreateRoomBtn">Launch Room ➔</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- 3. Join Room Modal -->
+    <div class="modal-overlay" id="joinRoomModal" style="display: none;">
+        <div class="modal-box">
+            <div class="modal-header">
+                <h3>Join a Friend's Room</h3>
+                <button class="modal-close-btn" data-close="joinRoomModal">×</button>
+            </div>
+            <div class="modal-body">
+                <p>Enter the 5-character Room Code shared by your friend:</p>
+                <input type="text" id="joinCodeInput" maxlength="5" placeholder="e.g. 7X9K2" style="text-transform: uppercase; font-size: 24px; letter-spacing: 6px; text-align: center;">
+            </div>
+            <div class="modal-actions">
+                <button class="btn-secondary" data-close="joinRoomModal">Cancel</button>
+                <button class="btn-primary" id="confirmJoinRoomBtn">Join Room ➔</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- 4. How To Play Modal -->
+    <div class="modal-overlay" id="howToPlayModal" style="display: none;">
+        <div class="modal-box modal-box-large">
+            <div class="modal-header">
+                <h3>📖 How To Play</h3>
+                <button class="modal-close-btn" data-close="howToPlayModal">×</button>
+            </div>
+            <div class="modal-body rules-content">
+                <div class="rule-item">
+                    <span class="rule-num">1</span>
+                    <div>
+                        <strong>Guess the Secret Word</strong>
+                        <p>Letters appear as blanks. Guess letters on screen or type directly on your keyboard.</p>
+                    </div>
+                </div>
+                <div class="rule-item">
+                    <span class="rule-num">2</span>
+                    <div>
+                        <strong>Watch Your Lives (Scaffold)</strong>
+                        <p>You have 6 lives. Each wrong guess draws a part of the hangman figure (head, body, arms, legs).</p>
+                    </div>
+                </div>
+                <div class="rule-item">
+                    <span class="rule-num">3</span>
+                    <div>
+                        <strong>Turn-Based Multiplayer</strong>
+                        <p>Take turns with your opponent. Correct guesses award +10 points and maintain momentum. Guessing the full word gives a +50 round victory bonus!</p>
+                    </div>
+                </div>
+                <div class="rule-item">
+                    <span class="rule-num">4</span>
+                    <div>
+                        <strong>Nostalgic Clues</strong>
+                        <p>Need help? Look at the nostalgic theme and tap the 💡 Hint button for iconic retro trivia.</p>
+                    </div>
+                </div>
+            </div>
+            <div class="modal-actions">
+                <button class="btn-primary" data-close="howToPlayModal">Got It!</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- 5. Lifetime Stats Modal -->
+    <div class="modal-overlay" id="statsModal" style="display: none;">
+        <div class="modal-box">
+            <div class="modal-header">
+                <h3>📊 Lifetime Statistics</h3>
+                <button class="modal-close-btn" data-close="statsModal">×</button>
+            </div>
+            <div class="modal-body stats-grid-modal">
+                <div class="stat-box">
+                    <span class="stat-number" id="statsTotalGames">0</span>
+                    <span class="stat-label">GAMES PLAYED</span>
+                </div>
+                <div class="stat-box">
+                    <span class="stat-number" id="statsTotalWins">0</span>
+                    <span class="stat-label">VICTORIES</span>
+                </div>
+                <div class="stat-box">
+                    <span class="stat-number" id="statsBestStreak">0</span>
+                    <span class="stat-label">BEST STREAK</span>
+                </div>
+                <div class="stat-box">
+                    <span class="stat-number" id="statsWinRate">0%</span>
+                    <span class="stat-label">WIN RATE</span>
+                </div>
+            </div>
+            <div class="modal-actions">
+                <button class="btn-primary" data-close="statsModal">Close</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Scripts -->
+    <script src="confetti.js"></script>
+    <script src="audio.js"></script>
     <script src="/socket.io/socket.io.js"></script>
-<script src="index.js"></script>
+    <script src="index.js"></script>
 
 </body>
 

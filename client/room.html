@@ -4,56 +4,221 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-
-    <title>Project Nostalgia - Room</title>
-
+    <title>Project Nostalgia - Multiplayer Arena</title>
     <link rel="stylesheet" href="room.css">
+    <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🕹️</text></svg>">
 </head>
 
-<body>
+<body class="theme-paper">
 
     <main class="room-container">
 
-        <header>
-            <p>PROJECT NOSTALGIA</p>
-            <h1>GAME ROOM</h1>
-        </header>
+        <!-- TOP BAR NAVIGATION -->
+        <div class="top-nav">
+            <button class="nav-btn" id="leaveRoomBtn" title="Leave Room">← Exit</button>
+            <div class="room-pill">
+                <span class="room-pill-label">ROOM:</span>
+                <span class="room-pill-code" id="headerRoomCode">-----</span>
+            </div>
+            <div class="top-nav-actions">
+                <button class="audio-btn" id="themeToggleBtn" title="Toggle Theme">🌓</button>
+                <button class="audio-btn" id="audioToggleBtn" title="Toggle Sound">🔊</button>
+            </div>
+        </div>
 
+        <!-- ==============================================
+             1. LOBBY VIEW (Visible before game starts)
+        =============================================== -->
+        <section class="view-panel" id="lobbyView">
 
-        <section class="room-code-section">
+            <header class="lobby-header">
+                <p>PROJECT NOSTALGIA MULTIPLAYER</p>
+                <h1>GAME ROOM LOBBY</h1>
+            </header>
 
-            <span>ROOM CODE</span>
+            <!-- Room Code Card -->
+            <div class="room-code-card">
+                <span class="card-caption">SHARE THIS 5-LETTER CODE WITH YOUR OPPONENT</span>
+                <h2 class="code-display" id="lobbyRoomCode">-----</h2>
+                <div class="code-btn-group">
+                    <button class="btn-action" id="copyCodeBtn">📋 Copy Code</button>
+                    <button class="btn-action" id="copyLinkBtn">🔗 Copy Invite Link</button>
+                </div>
+                <div class="toast-feedback" id="copyToast" style="display: none;">✓ Copied to clipboard!</div>
+            </div>
 
-            <h2 id="roomCode">-----</h2>
+            <!-- Match Settings Card (Host can customize) -->
+            <div class="category-card">
+                <div class="settings-row">
+                    <div>
+                        <label for="categorySelect">WORD THEME:</label>
+                        <select id="categorySelect" class="category-dropdown">
+                            <option value="random">🎲 Random Mix (Surprise!)</option>
+                            <option value="nostalgia">📼 90s & 2000s Nostalgia</option>
+                            <option value="videogames">🕹️ Classic Video Games</option>
+                            <option value="cartoons">📺 Cartoons & Movies</option>
+                            <option value="tech">💾 Retro Tech & Computing</option>
+                            <option value="treats">🍭 Childhood Treats & Snacks</option>
+                            <option value="animals">🐾 Animals & Nature</option>
+                        </select>
+                    </div>
 
-            <button id="copyButton">
-                COPY CODE
+                    <div>
+                        <label for="timerSelect">TURN TIMER:</label>
+                        <select id="timerSelect" class="category-dropdown">
+                            <option value="0">⏱️ Relaxed (No Timer)</option>
+                            <option value="30">⚡ 30s Blitz</option>
+                            <option value="45">⏱️ 45s Normal</option>
+                        </select>
+                    </div>
+                </div>
+                <small id="categoryHint">Host can change match settings</small>
+            </div>
+
+            <!-- Players in Room -->
+            <div class="players-card">
+                <h3>PLAYERS IN ROOM (MAX 2)</h3>
+                <div id="playersList" class="players-list"></div>
+            </div>
+
+            <p id="lobbyStatus" class="lobby-status">Connecting to server...</p>
+
+            <button id="startGameBtn" class="btn-primary-large" disabled>
+                WAITING FOR PLAYER 2...
             </button>
 
         </section>
 
 
-        <section class="players-section">
+        <!-- ==============================================
+             2. GAME ARENA VIEW (Visible when playing/round over)
+        =============================================== -->
+        <section class="view-panel" id="gameView" style="display: none;">
 
-            <h3>PLAYERS</h3>
+            <!-- Match Header / Scoreboard -->
+            <div class="game-top-bar">
+                <div class="category-badge" id="gameCategoryBadge">
+                    🕹️ Classic Video Games
+                </div>
 
-            <div id="players"></div>
+                <!-- Timer Indicator -->
+                <div class="timer-indicator" id="timerIndicator" style="display: none;">
+                    <span class="timer-icon">⏱️</span>
+                    <span id="timerCountdown">30s</span>
+                </div>
+
+                <!-- Lives Indicator -->
+                <div class="lives-indicator" id="livesIndicator">
+                    <span class="lives-label">LIVES:</span>
+                    <span class="lives-hearts" id="livesHearts">❤️❤️❤️❤️❤️❤️</span>
+                </div>
+            </div>
+
+            <!-- Scoreboard -->
+            <div class="scoreboard" id="scoreboard"></div>
+
+            <!-- Turn Banner -->
+            <div class="turn-banner" id="turnBanner">
+                <span id="turnText">Waiting for turn...</span>
+            </div>
+
+            <!-- Arena Stage: Gallows on Left, Word on Right -->
+            <div class="arena-stage" id="arenaStage">
+
+                <!-- Hangman Gallows Drawing -->
+                <div class="hangman-box">
+                    <div class="gallows" id="gallows">
+                        <div class="scaffold beam"></div>
+                        <div class="scaffold pole"></div>
+                        <div class="scaffold base"></div>
+                        <div class="scaffold rope"></div>
+
+                        <div class="part head"></div>
+                        <div class="part body"></div>
+                        <div class="part arm left-arm"></div>
+                        <div class="part arm right-arm"></div>
+                        <div class="part leg left-leg"></div>
+                        <div class="part leg right-leg"></div>
+                    </div>
+                </div>
+
+                <!-- Word Stage -->
+                <div class="word-stage">
+                    <!-- Nostalgia Hint Box -->
+                    <div class="hint-container">
+                        <button class="hint-toggle-btn" id="hintToggleBtn">💡 Show Nostalgia Hint</button>
+                        <div class="hint-text" id="hintText" style="display: none;"></div>
+                    </div>
+
+                    <div class="word-slots" id="wordSlots"></div>
+                    <div class="game-message" id="gameMessage">
+                        Select a letter or type on your keyboard.
+                    </div>
+                </div>
+
+            </div>
+
+            <!-- Virtual Keyboard -->
+            <div class="keyboard-container" id="virtualKeyboard"></div>
+
+            <!-- Round Over Overlay Banner -->
+            <div class="round-over-card" id="roundOverCard" style="display: none;">
+                <h2 id="roundOverTitle">ROUND WON!</h2>
+                <p id="roundOverMessage">The word was <strong>POKEMON</strong></p>
+                <div class="round-over-actions">
+                    <button class="btn-primary" id="nextRoundBtn">Play Next Round ➔</button>
+                    <button class="btn-secondary" id="backToLobbyBtn">Return to Lobby</button>
+                </div>
+            </div>
+
+            <!-- IN-GAME CHAT & SYSTEM LOG -->
+            <div class="chat-section">
+                <div class="chat-header">
+                    <span>💬 MATCH CHAT & LOG</span>
+                </div>
+                <div class="chat-messages" id="chatMessages"></div>
+                <div class="chat-input-row">
+                    <input type="text" id="chatInput" placeholder="Send a message or reaction..." maxlength="100" autocomplete="off">
+                    <button id="sendChatBtn" class="btn-chat">Send</button>
+                </div>
+            </div>
 
         </section>
 
+        <!-- FLOATING REACTIONS BAR -->
+        <div class="reactions-bar">
+            <span class="reactions-label">REACT:</span>
+            <div class="reactions-buttons">
+                <button class="reaction-btn" data-emoji="👏">👏</button>
+                <button class="reaction-btn" data-emoji="🔥">🔥</button>
+                <button class="reaction-btn" data-emoji="😱">😱</button>
+                <button class="reaction-btn" data-emoji="💡">💡</button>
+                <button class="reaction-btn" data-emoji="🎉">🎉</button>
+                <button class="reaction-btn" data-emoji="💀">💀</button>
+            </div>
+        </div>
 
-        <p id="status" class="status">
-            Connecting...
-        </p>
-
-
-        <button id="startButton" class="start-button" disabled>
-            WAITING FOR PLAYER
-        </button>
+        <div class="floating-reactions-area" id="reactionsArea"></div>
 
     </main>
 
+    <!-- Custom Word Modal (For Custom Duel Mode) -->
+    <div class="modal-overlay" id="customWordModal" style="display: none;">
+        <div class="modal-box">
+            <h3>Enter Secret Word for Opponent</h3>
+            <p>Type a word and an optional nostalgic clue:</p>
+            <input type="text" id="customWordInput" placeholder="SECRET WORD" maxlength="15" style="text-transform: uppercase;">
+            <input type="text" id="customHintInput" placeholder="Optional Hint (e.g. 90s snack)" maxlength="40">
+            <div class="modal-actions">
+                <button class="btn-secondary" id="cancelCustomWordBtn">Cancel</button>
+                <button class="btn-primary" id="submitCustomWordBtn">Start Duel ➔</button>
+            </div>
+        </div>
+    </div>
 
+    <!-- Scripts -->
+    <script src="confetti.js"></script>
+    <script src="audio.js"></script>
     <script src="/socket.io/socket.io.js"></script>
     <script src="room.js"></script>
 

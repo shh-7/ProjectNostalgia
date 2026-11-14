@@ -1,23 +1,31 @@
 {
-  "name": "gamesfrompast",
+  "name": "project-nostalgia",
   "version": "1.0.0",
-  "description": "",
-  "main": "game.js",
+  "description": "Project Nostalgia - Retro Childhood Games Online in Real-Time",
+  "main": "server/server.js",
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "start": "node server/server.js",
+    "dev": "node --watch server/server.js",
+    "test": "echo \"No test specified\" && exit 0"
   },
   "repository": {
     "type": "git",
     "url": "git+https://github.com/shh-7/gamesfrompast.git"
   },
-  "keywords": [],
+  "keywords": [
+    "multiplayer",
+    "hangman",
+    "nostalgia",
+    "retro-games",
+    "socketio",
+    "express"
+  ],
   "author": "",
   "license": "ISC",
   "type": "commonjs",
-  "bugs": {
-    "url": "https://github.com/shh-7/gamesfrompast/issues"
+  "engines": {
+    "node": ">=18"
   },
-  "homepage": "https://github.com/shh-7/gamesfrompast#readme",
   "dependencies": {
     "express": "^5.2.1",
     "socket.io": "^4.8.4"

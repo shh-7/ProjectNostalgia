@@ -1,277 +1,289 @@
+// ===================================================
+// PROJECT NOSTALGIA - ARCADE HOME CLIENT LOGIC
+// ===================================================
+
 const socket = io();
 
+// State
+let playerProfile = {
+    name: localStorage.getItem("nostalgia_player_name") || "Player " + Math.floor(100 + Math.random() * 900),
+    avatar: localStorage.getItem("nostalgia_player_avatar") || "👾",
+    theme: localStorage.getItem("nostalgia_theme") || "paper"
+};
 
-// ========================================
-// ELEMENTS
-// ========================================
+// DOM Elements - Nav & Profile
+const navAvatarEl = document.getElementById("navAvatar");
+const navPlayerNameEl = document.getElementById("navPlayerName");
+const playerProfileBtn = document.getElementById("playerProfileBtn");
+const howToPlayBtn = document.getElementById("howToPlayBtn");
+const statsBtn = document.getElementById("statsBtn");
+const themeToggleBtn = document.getElementById("themeToggleBtn");
+const audioToggleBtn = document.getElementById("audioToggleBtn");
+const audioIconEl = document.getElementById("audioIcon");
+const themeIconEl = document.getElementById("themeIcon");
 
-const gameNameButton = document.getElementById("gameNameButton");
-const createRoomButton = document.getElementById("createRoomButton");
-const joinRoomButton = document.getElementById("joinRoomButton");
+// DOM Elements - Hub Cards & Buttons
+const openCreateRoomBtn = document.getElementById("openCreateRoomBtn");
+const openJoinRoomBtn = document.getElementById("openJoinRoomBtn");
+const soloPlayBtn = document.getElementById("soloPlayBtn");
+const dailyPlayBtn = document.getElementById("dailyPlayBtn");
+const customDuelBtn = document.getElementById("customDuelBtn");
+const dailyDateText = document.getElementById("dailyDateText");
+const dailyCategoryText = document.getElementById("dailyCategoryText");
+const onlineStatus = document.getElementById("onlineStatus");
 
+// DOM Elements - Modals
+const profileModal = document.getElementById("profileModal");
+const profileNameInput = document.getElementById("profileNameInput");
+const saveProfileBtn = document.getElementById("saveProfileBtn");
+const avatarPicker = document.getElementById("avatarPicker");
 
-// ========================================
-// SOCKET CONNECTION
-// ========================================
+const createRoomModal = document.getElementById("createRoomModal");
+const roomCategorySelect = document.getElementById("roomCategorySelect");
+const roomTimerSelect = document.getElementById("roomTimerSelect");
+const roomModeSelect = document.getElementById("roomModeSelect");
+const confirmCreateRoomBtn = document.getElementById("confirmCreateRoomBtn");
 
-socket.on("connect", () => {
+const joinRoomModal = document.getElementById("joinRoomModal");
+const joinCodeInput = document.getElementById("joinCodeInput");
+const confirmJoinRoomBtn = document.getElementById("confirmJoinRoomBtn");
 
-    console.log(
-        "Connected to Project Nostalgia server:",
-        socket.id
-    );
+const howToPlayModal = document.getElementById("howToPlayModal");
+const statsModal = document.getElementById("statsModal");
 
-});
+// Stats Elements
+const statsTotalGames = document.getElementById("statsTotalGames");
+const statsTotalWins = document.getElementById("statsTotalWins");
+const statsBestStreak = document.getElementById("statsBestStreak");
+const statsWinRate = document.getElementById("statsWinRate");
 
+// ===================================================
+// INITIALIZATION
+// ===================================================
 
-// ========================================
-// GET / SET GAME NAME
-// ========================================
-
-function getGameName() {
-
-    let gameName = localStorage.getItem("gameName");
-
-    // If name already exists, use it
-    if (gameName) {
-        return gameName;
-    }
-
-
-    // Ask player for a name
-    gameName = prompt("Enter your game name:");
-
-    if (gameName === null) {
-        return null;
-    }
-
-
-    gameName = gameName.trim();
-
-
-    // Empty name
-    if (gameName === "") {
-
-        alert("Game name cannot be empty.");
-
-        return null;
-    }
-
-
-    // Name too long
-    if (gameName.length > 20) {
-
-        alert("Game name must be 20 characters or less.");
-
-        return null;
-    }
-
-
-    // Save name
-    localStorage.setItem("gameName", gameName);
-
-    return gameName;
+function applyTheme(theme) {
+    document.body.className = theme === "midnight" ? "theme-midnight" : "theme-paper";
+    localStorage.setItem("nostalgia_theme", theme);
+    themeIconEl.textContent = theme === "midnight" ? "☀️" : "🌙";
 }
 
+function updateProfileUI() {
+    navAvatarEl.textContent = playerProfile.avatar;
+    navPlayerNameEl.textContent = playerProfile.name;
+    profileNameInput.value = playerProfile.name;
 
-// ========================================
-// GAME NAME BUTTON
-// ========================================
+    // Highlight selected avatar
+    document.querySelectorAll(".avatar-option").forEach(btn => {
+        if (btn.dataset.avatar === playerProfile.avatar) {
+            btn.classList.add("selected");
+        } else {
+            btn.classList.remove("selected");
+        }
+    });
+}
 
-gameNameButton.addEventListener("click", () => {
-
-    const currentName = localStorage.getItem("gameName");
-
-
-    const name = prompt(
-        "Enter your game name:",
-        currentName || ""
-    );
-
-
-    // Player cancelled
-    if (name === null) {
-        return;
+function updateAudioUI() {
+    if (window.soundFX) {
+        audioIconEl.textContent = window.soundFX.isMuted() ? "🔇" : "🔊";
     }
+}
 
+applyTheme(playerProfile.theme);
+updateProfileUI();
+updateAudioUI();
 
-    const trimmedName = name.trim();
-
-
-    if (trimmedName === "") {
-
-        alert("Game name cannot be empty.");
-
-        return;
+// Fetch daily word metadata & platform stats
+fetch("/api/daily").then(res => res.json()).then(data => {
+    if (data) {
+        dailyDateText.textContent = `📅 ${data.date}`;
+        dailyCategoryText.textContent = data.categoryName;
     }
+}).catch(() => {});
 
-
-    if (trimmedName.length > 20) {
-
-        alert("Game name must be 20 characters or less.");
-
-        return;
+fetch("/api/stats").then(res => res.json()).then(data => {
+    if (data && data.metrics) {
+        onlineStatus.textContent = `🟢 Online • ${data.activeRooms} Active Rooms • ${data.totalWords} Curated Words`;
     }
+}).catch(() => {});
 
+// ===================================================
+// AUDIO & THEME TOGGLES
+// ===================================================
 
-    localStorage.setItem("gameName", trimmedName);
-
-
-    alert(
-        `Game name saved as "${trimmedName}"`
-    );
-
+audioToggleBtn.addEventListener("click", () => {
+    if (window.soundFX) {
+        window.soundFX.toggleMute();
+        updateAudioUI();
+        window.soundFX.playClick();
+    }
 });
 
-
-// ========================================
-// CREATE ROOM
-// ========================================
-
-createRoomButton.addEventListener("click", () => {
-
-    const gameName = getGameName();
-
-
-    // Player cancelled name entry
-    if (!gameName) {
-        return;
-    }
-
-
-    console.log(
-        "Creating room for:",
-        gameName
-    );
-
-
-    socket.emit("createRoom", gameName);
-
+themeToggleBtn.addEventListener("click", () => {
+    if (window.soundFX) window.soundFX.playClick();
+    playerProfile.theme = playerProfile.theme === "paper" ? "midnight" : "paper";
+    applyTheme(playerProfile.theme);
 });
 
+// ===================================================
+// MODAL CONTROLLER HELPER
+// ===================================================
 
-// ========================================
-// ROOM CREATED
-// ========================================
+function openModal(modalEl) {
+    if (window.soundFX) window.soundFX.playClick();
+    modalEl.style.display = "flex";
+}
+
+function closeModal(modalEl) {
+    modalEl.style.display = "none";
+}
+
+// Close buttons binding
+document.querySelectorAll(".modal-close-btn, [data-close]").forEach(btn => {
+    btn.addEventListener("click", () => {
+        if (window.soundFX) window.soundFX.playClick();
+        const targetId = btn.dataset.close || btn.closest(".modal-overlay").id;
+        const modal = document.getElementById(targetId);
+        if (modal) closeModal(modal);
+    });
+});
+
+// Close modal on backdrop click or ESC
+window.addEventListener("click", (e) => {
+    if (e.target.classList.contains("modal-overlay")) {
+        closeModal(e.target);
+    }
+});
+
+window.addEventListener("keydown", (e) => {
+    if (e.key === "Escape") {
+        document.querySelectorAll(".modal-overlay").forEach(m => closeModal(m));
+    }
+});
+
+// ===================================================
+// PROFILE CUSTOMIZATION
+// ===================================================
+
+playerProfileBtn.addEventListener("click", () => {
+    openModal(profileModal);
+    profileNameInput.focus();
+});
+
+avatarPicker.querySelectorAll(".avatar-option").forEach(btn => {
+    btn.addEventListener("click", () => {
+        if (window.soundFX) window.soundFX.playClick();
+        playerProfile.avatar = btn.dataset.avatar;
+        updateProfileUI();
+    });
+});
+
+saveProfileBtn.addEventListener("click", () => {
+    if (window.soundFX) window.soundFX.playClick();
+    const cleanName = profileNameInput.value.trim().substring(0, 20);
+    if (cleanName) {
+        playerProfile.name = cleanName;
+        localStorage.setItem("nostalgia_player_name", cleanName);
+        localStorage.setItem("gameName", cleanName);
+        localStorage.setItem("nostalgia_player_avatar", playerProfile.avatar);
+        updateProfileUI();
+    }
+    closeModal(profileModal);
+});
+
+// ===================================================
+// GAME LAUNCHERS
+// ===================================================
+
+// Solo Play
+soloPlayBtn.addEventListener("click", () => {
+    if (window.soundFX) window.soundFX.playClick();
+    window.location.href = "solo.html";
+});
+
+// Daily Challenge
+dailyPlayBtn.addEventListener("click", () => {
+    if (window.soundFX) window.soundFX.playClick();
+    window.location.href = "solo.html?mode=daily";
+});
+
+// Custom Word Duel (Preselects custom mode)
+customDuelBtn.addEventListener("click", () => {
+    roomModeSelect.value = "custom";
+    openModal(createRoomModal);
+});
+
+// Create Room Modal
+openCreateRoomBtn.addEventListener("click", () => {
+    roomModeSelect.value = "standard";
+    openModal(createRoomModal);
+});
+
+confirmCreateRoomBtn.addEventListener("click", () => {
+    if (window.soundFX) window.soundFX.playClick();
+    confirmCreateRoomBtn.disabled = true;
+    confirmCreateRoomBtn.textContent = "Creating...";
+
+    socket.emit("createRoom", {
+        playerName: playerProfile.name,
+        avatar: playerProfile.avatar,
+        category: roomCategorySelect.value,
+        timerSeconds: roomTimerSelect.value,
+        mode: roomModeSelect.value
+    });
+});
 
 socket.on("roomCreated", (data) => {
-
-    console.log(
-        "Room created:",
-        data.roomCode
-    );
-
-
-    // Move player to room
-    window.location.href =
-        `/room/room.html?code=${data.roomCode}`;
-
+    window.location.href = `room.html?code=${data.roomCode}`;
 });
 
+// Join Room Modal
+openJoinRoomBtn.addEventListener("click", () => {
+    joinCodeInput.value = "";
+    openModal(joinRoomModal);
+    setTimeout(() => joinCodeInput.focus(), 50);
+});
 
-// ========================================
-// JOIN ROOM
-// ========================================
-
-joinRoomButton.addEventListener("click", () => {
-
-    const gameName = getGameName();
-
-
-    // Player cancelled name entry
-    if (!gameName) {
-        return;
+confirmJoinRoomBtn.addEventListener("click", () => {
+    const code = joinCodeInput.value.trim().toUpperCase().replace(/[^A-Z0-9]/g, "");
+    if (code.length >= 4) {
+        if (window.soundFX) window.soundFX.playClick();
+        window.location.href = `room.html?code=${code}`;
+    } else {
+        alert("Please enter a valid 5-character room code.");
     }
+});
 
-
-    // Ask for room code
-    const roomCode = prompt(
-        "Enter room code:"
-    );
-
-
-    // Player cancelled
-    if (roomCode === null) {
-        return;
+joinCodeInput.addEventListener("keydown", (e) => {
+    if (e.key === "Enter") {
+        confirmJoinRoomBtn.click();
     }
+});
 
+// How to Play & Stats Modals
+howToPlayBtn.addEventListener("click", () => {
+    openModal(howToPlayModal);
+});
 
-    const trimmedCode =
-        roomCode.trim().toUpperCase();
+statsBtn.addEventListener("click", () => {
+    const wins = parseInt(localStorage.getItem("nostalgia_solo_wins") || "0", 10);
+    const bestStreak = parseInt(localStorage.getItem("nostalgia_solo_best_streak") || "0", 10);
+    const totalGames = wins + parseInt(localStorage.getItem("nostalgia_solo_losses") || "0", 10);
+    const winRate = totalGames > 0 ? Math.round((wins / totalGames) * 100) : 0;
 
+    statsTotalGames.textContent = totalGames;
+    statsTotalWins.textContent = wins;
+    statsBestStreak.textContent = bestStreak;
+    statsWinRate.textContent = `${winRate}%`;
 
-    if (trimmedCode === "") {
+    openModal(statsModal);
+});
 
-        alert(
-            "Room code cannot be empty."
-        );
-
-        return;
+// URL Auto-Join (e.g. ?code=XYZ)
+window.addEventListener("DOMContentLoaded", () => {
+    const urlParams = new URLSearchParams(window.location.search);
+    const joinCode = urlParams.get("join") || urlParams.get("code");
+    if (joinCode) {
+        const clean = joinCode.toUpperCase().replace(/[^A-Z0-9]/g, "");
+        if (clean) window.location.href = `room.html?code=${clean}`;
     }
-
-
-    console.log(
-        `Joining room ${trimmedCode} as ${gameName}`
-    );
-
-
-    socket.emit("joinRoom", {
-
-        roomCode: trimmedCode,
-
-        playerName: gameName
-
-    });
-
-});
-
-
-// ========================================
-// ROOM JOINED
-// ========================================
-
-socket.on("roomJoined", (data) => {
-
-    console.log(
-        "Successfully joined room:",
-        data.roomCode
-    );
-
-
-    // Move player to room
-    window.location.href =
-        `/room/room.html?code=${data.roomCode}`;
-
-});
-
-
-// ========================================
-// JOIN ERROR
-// ========================================
-
-socket.on("joinError", (message) => {
-
-    console.error(
-        "Failed to join room:",
-        message
-    );
-
-
-    alert(
-        `❌ ${message}`
-    );
-
-});
-
-
-// ========================================
-// DISCONNECT
-// ========================================
-
-socket.on("disconnect", () => {
-
-    console.log(
-        "Disconnected from Project Nostalgia server."
-    );
-
 });

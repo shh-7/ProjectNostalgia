@@ -1,0 +1,155 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Project Nostalgia - Solo Practice & Daily Challenge</title>
+    <link rel="stylesheet" href="room.css">
+    <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🕹️</text></svg>">
+    <style>
+        .solo-top-controls {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            gap: 10px;
+            margin-bottom: 12px;
+            flex-wrap: wrap;
+        }
+
+        .solo-streak-card {
+            background: var(--surface-color);
+            border: var(--border-width) solid var(--border-color);
+            border-radius: 10px;
+            padding: 8px 16px;
+            display: inline-flex;
+            gap: 16px;
+            font-size: 13px;
+            font-weight: bold;
+            box-shadow: var(--btn-shadow);
+        }
+
+        .streak-highlight {
+            color: var(--accent-highlight);
+        }
+    </style>
+</head>
+
+<body class="theme-paper">
+
+    <main class="room-container">
+
+        <!-- TOP BAR NAVIGATION -->
+        <div class="top-nav">
+            <button class="nav-btn" id="leaveSoloBtn" title="Back to Home">← Home</button>
+            <div class="room-pill">
+                <span class="room-pill-label">MODE:</span>
+                <span class="room-pill-code" id="soloModeTitle">SOLO PRACTICE</span>
+            </div>
+            <div class="top-nav-actions">
+                <button class="audio-btn" id="themeToggleBtn" title="Toggle Theme">🌓</button>
+                <button class="audio-btn" id="audioToggleBtn" title="Toggle Sound">🔊</button>
+            </div>
+        </div>
+
+        <section class="view-panel" id="gameView">
+
+            <!-- Category & Difficulty Bar -->
+            <div class="solo-top-controls">
+                <div style="display: flex; gap: 8px; flex-wrap: wrap;">
+                    <select id="soloCategorySelect" class="category-dropdown" style="max-width: 240px; padding: 6px 12px; font-size: 13px;">
+                        <option value="random">🎲 Random Mix (Surprise!)</option>
+                        <option value="nostalgia">📼 90s & 2000s Nostalgia</option>
+                        <option value="videogames">🕹️ Classic Video Games</option>
+                        <option value="cartoons">📺 Cartoons & Movies</option>
+                        <option value="tech">💾 Retro Tech & Computing</option>
+                        <option value="treats">🍭 Childhood Treats & Snacks</option>
+                        <option value="animals">🐾 Animals & Nature</option>
+                    </select>
+
+                    <select id="difficultySelect" class="category-dropdown" style="max-width: 130px; padding: 6px 12px; font-size: 13px;">
+                        <option value="normal">Normal (6❤️)</option>
+                        <option value="easy">Easy (7❤️)</option>
+                        <option value="hard">Hard (5❤️)</option>
+                    </select>
+                </div>
+
+                <div class="lives-indicator">
+                    <span class="lives-label">LIVES:</span>
+                    <span class="lives-hearts" id="livesHearts">❤️❤️❤️❤️❤️❤️</span>
+                </div>
+            </div>
+
+            <!-- Streak & Score Counter -->
+            <div class="scoreboard">
+                <div class="solo-streak-card">
+                    <span>🔥 Streak: <span id="streakCount" class="streak-highlight">0</span></span>
+                    <span>🏆 Best: <span id="bestStreak">0</span></span>
+                    <span>⭐ Wins: <span id="totalWins">0</span></span>
+                </div>
+            </div>
+
+            <!-- Turn Banner -->
+            <div class="turn-banner my-turn" id="turnBanner">
+                <span id="turnText">🎯 GUESS A LETTER TO SAVE THE HANGMAN!</span>
+            </div>
+
+            <!-- Arena Stage -->
+            <div class="arena-stage" id="arenaStage">
+
+                <div class="hangman-box">
+                    <div class="gallows" id="gallows">
+                        <div class="scaffold beam"></div>
+                        <div class="scaffold pole"></div>
+                        <div class="scaffold base"></div>
+                        <div class="scaffold rope"></div>
+
+                        <div class="part head"></div>
+                        <div class="part body"></div>
+                        <div class="part arm left-arm"></div>
+                        <div class="part arm right-arm"></div>
+                        <div class="part leg left-leg"></div>
+                        <div class="part leg right-leg"></div>
+                    </div>
+                </div>
+
+                <div class="word-stage">
+                    <!-- Nostalgia Hint Box -->
+                    <div class="hint-container">
+                        <button class="hint-toggle-btn" id="hintToggleBtn">💡 Show Nostalgia Hint</button>
+                        <div class="hint-text" id="hintText" style="display: none;"></div>
+                    </div>
+
+                    <div class="word-slots" id="wordSlots"></div>
+                    <div class="game-message" id="gameMessage">
+                        Click a letter below or type on your keyboard.
+                    </div>
+                </div>
+
+            </div>
+
+            <!-- Virtual Keyboard -->
+            <div class="keyboard-container" id="virtualKeyboard"></div>
+
+            <!-- Round Over Banner -->
+            <div class="round-over-card" id="roundOverCard" style="display: none;">
+                <h2 id="roundOverTitle">ROUND WON!</h2>
+                <p id="roundOverMessage">The word was <strong>POKEMON</strong></p>
+                <div class="round-over-actions">
+                    <button class="btn-primary" id="newWordBtn">Play Next Word ➔</button>
+                    <button class="btn-secondary" id="restartSoloBtn">Change Category</button>
+                </div>
+            </div>
+
+        </section>
+
+    </main>
+
+    <!-- Scripts -->
+    <script src="confetti.js"></script>
+    <script src="audio.js"></script>
+    <script src="solo.js"></script>
+
+</body>
+
+</html>
