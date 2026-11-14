@@ -1,0 +1,598 @@
+// ===================================================
+// PROJECT NOSTALGIA - UNIFIED NETWORK ADAPTER
+// Supports:
+// 1. Socket.IO (when hosted with Node backend)
+// 2. PeerJS / WebRTC (100% serverless on GitHub Pages)
+// ===================================================
+
+class NetworkAdapter {
+    constructor() {
+        this.listeners = {};
+        this.mode = "detecting"; // 'socket' | 'webrtc'
+        this.socket = null;
+        this.peer = null;
+        this.connections = []; // For Host in WebRTC mode
+        this.connToHost = null; // For Guest in WebRTC mode
+        this.isHost = false;
+        this.roomState = null;
+        this.roomCode = null;
+        this.timerInterval = null;
+
+        this.init();
+    }
+
+    on(event, callback) {
+        if (!this.listeners[event]) {
+            this.listeners[event] = [];
+        }
+        this.listeners[event].push(callback);
+    }
+
+    emitEvent(event, data) {
+        if (this.listeners[event]) {
+            this.listeners[event].forEach(cb => cb(data));
+        }
+    }
+
+    init() {
+        const isStaticHost = window.location.hostname.includes("github.io") ||
+                             window.location.protocol === "file:" ||
+                             window.location.hostname.includes("pages.dev");
+
+        if (isStaticHost || typeof io === "undefined") {
+            this.mode = "webrtc";
+            console.log("[Network] Static hosting detected (GitHub Pages). Using PeerJS WebRTC P2P.");
+        } else {
+            try {
+                this.socket = io({
+                    reconnectionAttempts: 2,
+                    timeout: 2500
+                });
+
+                this.socket.on("connect", () => {
+                    this.mode = "socket";
+                    console.log("[Network] Connected to Node Socket.IO backend:", this.socket.id);
+                });
+
+                this.socket.on("connect_error", () => {
+                    if (this.mode === "detecting") {
+                        console.warn("[Network] Socket.IO connection failed. Switching to PeerJS WebRTC fallback.");
+                        this.mode = "webrtc";
+                    }
+                });
+
+                // Forward incoming socket events to listeners
+                const socketEvents = [
+                    "roomCreated", "roomJoined", "roomUpdated", "gameStarted",
+                    "guessResult", "turnNotice", "playerJoinedAnnouncement",
+                    "playerLeftAnnouncement", "reactionReceived", "chatMessage",
+                    "joinError", "roomError"
+                ];
+
+                socketEvents.forEach(evt => {
+                    this.socket.on(evt, (data) => this.emitEvent(evt, data));
+                });
+
+            } catch (e) {
+                this.mode = "webrtc";
+            }
+        }
+    }
+
+    emit(event, payload) {
+        if (this.mode === "socket" && this.socket && this.socket.connected) {
+            this.socket.emit(event, payload);
+        } else {
+            this.handleWebRTCAction(event, payload);
+        }
+    }
+
+    // ===============================================
+    // WEBRTC SERVERLESS P2P IMPLEMENTATION
+    // (Enables 100% online multiplayer on GitHub Pages)
+    // ===============================================
+
+    getPeerPrefix(code) {
+        return "nostalgia-rm-" + code.toLowerCase();
+    }
+
+    handleWebRTCAction(event, payload) {
+        switch (event) {
+            case "createRoom":
+                this.webrtcCreateRoom(payload);
+                break;
+            case "joinRoom":
+                this.webrtcJoinRoom(payload);
+                break;
+            case "updateSettings":
+                this.webrtcUpdateSettings(payload);
+                break;
+            case "startGame":
+                this.webrtcStartGame(payload);
+                break;
+            case "guessLetter":
+                this.webrtcGuessLetter(payload);
+                break;
+            case "nextRound":
+                this.webrtcNextRound(payload);
+                break;
+            case "sendReaction":
+                this.webrtcSendReaction(payload);
+                break;
+            case "sendChatMessage":
+                this.webrtcSendChatMessage(payload);
+                break;
+        }
+    }
+
+    // Helper: generate 5-character code
+    generateCode() {
+        const chars = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
+        let c = "";
+        for (let i = 0; i < 5; i++) c += chars.charAt(Math.floor(Math.random() * chars.length));
+        return c;
+    }
+
+    webrtcCreateRoom(payload) {
+        this.isHost = true;
+        const code = this.generateCode();
+        this.roomCode = code;
+        const peerId = this.getPeerPrefix(code);
+
+        this.initHostPeer(peerId, payload, code);
+    }
+
+    initHostPeer(peerId, payload, code) {
+        if (typeof Peer === "undefined") {
+            alert("WebRTC PeerJS library failed to load. Please check internet connection.");
+            return;
+        }
+
+        this.peer = new Peer(peerId, { debug: 1 });
+
+        this.peer.on("open", (id) => {
+            console.log("[WebRTC Host] Room opened with Peer ID:", id);
+
+            this.roomState = {
+                roomCode: code,
+                category: payload.category || "random",
+                mode: payload.mode || "standard",
+                timerSeconds: parseInt(payload.timerSeconds, 10) || 0,
+                gameState: "lobby",
+                roundNumber: 0,
+                hostId: "host",
+                players: [
+                    {
+                        id: "host",
+                        name: (payload.playerName || "Player 1").substring(0, 20),
+                        avatar: payload.avatar || "👾",
+                        score: 0,
+                        roundsWon: 0,
+                        isHost: true
+                    }
+                ],
+                game: null,
+                chatMessages: []
+            };
+
+            this.emitEvent("roomCreated", { roomCode: code, playerName: payload.playerName });
+            this.emitEvent("roomUpdated", this.getSanitizedState());
+        });
+
+        this.peer.on("connection", (conn) => {
+            this.setupHostConnection(conn);
+        });
+
+        this.peer.on("error", (err) => {
+            console.error("[WebRTC Host Error]", err);
+            if (err.type === "unavailable-id") {
+                // Retry with new code
+                this.webrtcCreateRoom(payload);
+            }
+        });
+    }
+
+    setupHostConnection(conn) {
+        conn.on("open", () => {
+            console.log("[WebRTC Host] Guest connected:", conn.peer);
+            this.connections.push(conn);
+        });
+
+        conn.on("data", (data) => {
+            this.handleHostReceivedData(data, conn);
+        });
+
+        conn.on("close", () => {
+            console.log("[WebRTC Host] Guest disconnected");
+            this.connections = this.connections.filter(c => c !== conn);
+            if (this.roomState && this.roomState.players.length > 1) {
+                const leaving = this.roomState.players[1];
+                this.roomState.players.splice(1, 1);
+                this.broadcast("playerLeftAnnouncement", `${leaving.name} left the room.`);
+                this.broadcastRoomState();
+            }
+        });
+    }
+
+    handleHostReceivedData(msg, conn) {
+        if (!msg || !msg.type) return;
+
+        switch (msg.type) {
+            case "guestJoin":
+                if (this.roomState.players.length >= 2) {
+                    conn.send({ type: "joinError", error: "Room is already full." });
+                    return;
+                }
+                const guestPlayer = {
+                    id: "guest",
+                    name: (msg.playerName || "Player 2").substring(0, 20),
+                    avatar: msg.avatar || "🎮",
+                    score: 0,
+                    roundsWon: 0,
+                    isHost: false
+                };
+                this.roomState.players.push(guestPlayer);
+
+                conn.send({ type: "roomJoined", roomCode: this.roomState.roomCode });
+                this.broadcast("playerJoinedAnnouncement", `${guestPlayer.name} joined!`);
+                this.broadcastRoomState();
+                break;
+
+            case "guessLetter":
+                this.processGuess(msg.letter, "guest");
+                break;
+
+            case "sendReaction":
+                this.broadcast("reactionReceived", msg);
+                break;
+
+            case "sendChatMessage":
+                const chatMsg = {
+                    id: Date.now(),
+                    sender: msg.sender,
+                    avatar: msg.avatar,
+                    text: msg.text,
+                    time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+                };
+                this.roomState.chatMessages.push(chatMsg);
+                if (this.roomState.chatMessages.length > 30) this.roomState.chatMessages.shift();
+                this.broadcast("chatMessage", chatMsg);
+                break;
+        }
+    }
+
+    webrtcJoinRoom(payload) {
+        this.isHost = false;
+        const code = (payload.roomCode || "").trim().toUpperCase();
+        const hostPeerId = this.getPeerPrefix(code);
+
+        if (typeof Peer === "undefined") {
+            alert("WebRTC PeerJS library failed to load. Please check internet connection.");
+            return;
+        }
+
+        this.peer = new Peer({ debug: 1 });
+
+        this.peer.on("open", () => {
+            console.log("[WebRTC Guest] Connecting to Host Peer:", hostPeerId);
+            const conn = this.peer.connect(hostPeerId, { reliable: true });
+
+            conn.on("open", () => {
+                this.connToHost = conn;
+                conn.send({
+                    type: "guestJoin",
+                    playerName: payload.playerName,
+                    avatar: payload.avatar
+                });
+            });
+
+            conn.on("data", (data) => {
+                this.handleGuestReceivedData(data);
+            });
+
+            conn.on("error", (err) => {
+                this.emitEvent("joinError", "Failed to connect to room. Check code.");
+            });
+        });
+
+        this.peer.on("error", (err) => {
+            this.emitEvent("joinError", "Could not locate room. Verify room code.");
+        });
+    }
+
+    handleGuestReceivedData(data) {
+        if (!data || !data.type) return;
+
+        switch (data.type) {
+            case "roomJoined":
+                this.emitEvent("roomJoined", data);
+                break;
+            case "roomUpdated":
+                this.emitEvent("roomUpdated", data.state);
+                break;
+            case "gameStarted":
+                this.emitEvent("gameStarted", data.state);
+                break;
+            case "guessResult":
+                this.emitEvent("guessResult", data);
+                break;
+            case "turnNotice":
+                this.emitEvent("turnNotice", data.msg);
+                break;
+            case "playerJoinedAnnouncement":
+                this.emitEvent("playerJoinedAnnouncement", data.msg);
+                break;
+            case "playerLeftAnnouncement":
+                this.emitEvent("playerLeftAnnouncement", data.msg);
+                break;
+            case "reactionReceived":
+                this.emitEvent("reactionReceived", data);
+                break;
+            case "chatMessage":
+                this.emitEvent("chatMessage", data);
+                break;
+            case "joinError":
+                this.emitEvent("joinError", data.error);
+                break;
+        }
+    }
+
+    broadcast(type, data) {
+        const payload = typeof data === "object" ? { type, ...data } : { type, msg: data };
+        this.emitEvent(type, payload);
+        this.connections.forEach(conn => {
+            if (conn.open) conn.send(payload);
+        });
+    }
+
+    broadcastRoomState() {
+        const state = this.getSanitizedState();
+        this.emitEvent("roomUpdated", state);
+        this.connections.forEach(conn => {
+            if (conn.open) conn.send({ type: "roomUpdated", state });
+        });
+    }
+
+    getSanitizedState() {
+        if (!this.roomState) return null;
+        let maskedGame = null;
+        if (this.roomState.game) {
+            const showFull = this.roomState.gameState === "roundOver";
+            maskedGame = {
+                categoryName: this.roomState.game.categoryName,
+                categoryKey: this.roomState.game.categoryKey,
+                hint: this.roomState.game.hint,
+                displayLetters: showFull ? this.roomState.game.word.split("") : this.roomState.game.maskedWord,
+                wordLength: this.roomState.game.word.length,
+                revealedWord: showFull ? this.roomState.game.word : null,
+                guessedLetters: this.roomState.game.guessedLetters,
+                wrongGuesses: this.roomState.game.wrongGuesses,
+                maxLives: this.roomState.game.maxLives,
+                currentTurnId: this.roomState.game.turnPlayerId,
+                currentTurnName: this.roomState.game.turnPlayerName,
+                turnExpiresAt: this.roomState.game.turnExpiresAt,
+                timerSeconds: this.roomState.timerSeconds,
+                winnerName: this.roomState.game.winnerName,
+                isVictory: this.roomState.game.isVictory
+            };
+        }
+
+        return {
+            roomCode: this.roomState.roomCode,
+            category: this.roomState.category,
+            mode: this.roomState.mode,
+            timerSeconds: this.roomState.timerSeconds,
+            gameState: this.roomState.gameState,
+            hostId: "host",
+            players: this.roomState.players,
+            game: maskedGame,
+            chatMessages: this.roomState.chatMessages
+        };
+    }
+
+    webrtcUpdateSettings(payload) {
+        if (!this.isHost || !this.roomState) return;
+        if (payload.category) this.roomState.category = payload.category;
+        if (payload.timerSeconds !== undefined) this.roomState.timerSeconds = parseInt(payload.timerSeconds, 10);
+        this.broadcastRoomState();
+    }
+
+    webrtcStartGame(payload) {
+        if (!this.isHost || !this.roomState) return;
+        this.initRound(payload.customWord, payload.customHint);
+        const state = this.getSanitizedState();
+        this.emitEvent("gameStarted", state);
+        this.connections.forEach(conn => {
+            if (conn.open) conn.send({ type: "gameStarted", state });
+        });
+    }
+
+    initRound(customWord, customHint) {
+        let word, hint, catKey, catName;
+        if (customWord) {
+            word = customWord.toUpperCase().trim();
+            hint = customHint || "Custom secret word!";
+            catKey = "custom";
+            catName = "⚔️ Custom Word Duel";
+        } else {
+            const selected = window.NostalgiaWords.getRandomWord(this.roomState.category);
+            word = selected.word;
+            hint = selected.hint;
+            catKey = selected.categoryKey;
+            catName = selected.categoryName;
+        }
+
+        const clueLetters = window.NostalgiaWords.getStartingClues(word, "normal");
+        const maskedWord = word.split("").map(char => {
+            if (char === " ") return " ";
+            if (clueLetters.includes(char)) return char;
+            return null;
+        });
+
+        const turnIndex = this.roomState.players.length > 1
+            ? (this.roomState.roundNumber ? this.roomState.roundNumber % this.roomState.players.length : 0)
+            : 0;
+
+        const turnPlayer = this.roomState.players[turnIndex];
+
+        this.roomState.game = {
+            word,
+            hint,
+            categoryKey: catKey,
+            categoryName: catName,
+            maskedWord,
+            guessedLetters: clueLetters.map(l => ({ letter: l, correct: true })),
+            wrongGuesses: 0,
+            maxLives: 6,
+            currentTurnIndex: turnIndex,
+            turnPlayerId: turnPlayer.id,
+            turnPlayerName: turnPlayer.name,
+            turnExpiresAt: null,
+            winnerName: null,
+            isVictory: false
+        };
+
+        this.roomState.gameState = "playing";
+        this.roomState.roundNumber = (this.roomState.roundNumber || 0) + 1;
+    }
+
+    webrtcGuessLetter(payload) {
+        if (this.isHost) {
+            this.processGuess(payload.letter, "host");
+        } else if (this.connToHost && this.connToHost.open) {
+            this.connToHost.send({ type: "guessLetter", letter: payload.letter });
+        }
+    }
+
+    processGuess(char, playerId) {
+        if (!this.roomState || this.roomState.gameState !== "playing" || !this.roomState.game) return;
+        const letter = (char || "").toUpperCase();
+        const game = this.roomState.game;
+
+        if (this.roomState.players.length > 1 && game.turnPlayerId !== playerId) {
+            if (playerId === "host") this.emitEvent("turnNotice", "Not your turn!");
+            return;
+        }
+
+        if (game.guessedLetters.some(g => g.letter === letter)) return;
+
+        const isMatch = game.word.includes(letter);
+        const player = this.roomState.players.find(p => p.id === playerId);
+
+        if (isMatch) {
+            let count = 0;
+            for (let i = 0; i < game.word.length; i++) {
+                if (game.word[i] === letter) {
+                    game.maskedWord[i] = letter;
+                    count++;
+                }
+            }
+            if (player) player.score += count * 10;
+            game.guessedLetters.push({ letter, correct: true });
+
+            const solved = game.maskedWord.every(c => c !== null);
+            if (solved) {
+                this.roomState.gameState = "roundOver";
+                game.isVictory = true;
+                game.winnerName = player ? player.name : "Players";
+                if (player) {
+                    player.score += 50;
+                    player.roundsWon += 1;
+                }
+                this.broadcast("guessResult", {
+                    letter,
+                    correct: true,
+                    byPlayer: player ? player.name : "Player",
+                    isRoundOver: true,
+                    isVictory: true
+                });
+                this.broadcastRoomState();
+                return;
+            } else {
+                this.broadcast("guessResult", {
+                    letter,
+                    correct: true,
+                    byPlayer: player ? player.name : "Player",
+                    isRoundOver: false
+                });
+            }
+        } else {
+            game.wrongGuesses += 1;
+            game.guessedLetters.push({ letter, correct: false });
+
+            if (game.wrongGuesses >= game.maxLives) {
+                this.roomState.gameState = "roundOver";
+                game.isVictory = false;
+                game.winnerName = null;
+
+                this.broadcast("guessResult", {
+                    letter,
+                    correct: false,
+                    byPlayer: player ? player.name : "Player",
+                    isRoundOver: true,
+                    isVictory: false
+                });
+                this.broadcastRoomState();
+                return;
+            }
+
+            if (this.roomState.players.length > 1) {
+                game.currentTurnIndex = (game.currentTurnIndex + 1) % this.roomState.players.length;
+                const nextPlayer = this.roomState.players[game.currentTurnIndex];
+                game.turnPlayerId = nextPlayer.id;
+                game.turnPlayerName = nextPlayer.name;
+            }
+
+            this.broadcast("guessResult", {
+                letter,
+                correct: false,
+                byPlayer: player ? player.name : "Player",
+                isRoundOver: false
+            });
+        }
+
+        this.broadcastRoomState();
+    }
+
+    webrtcNextRound(payload) {
+        if (!this.isHost) return;
+        this.initRound(payload.customWord, payload.customHint);
+        const state = this.getSanitizedState();
+        this.emitEvent("gameStarted", state);
+        this.connections.forEach(conn => {
+            if (conn.open) conn.send({ type: "gameStarted", state });
+        });
+    }
+
+    webrtcSendReaction(payload) {
+        if (this.isHost) {
+            this.broadcast("reactionReceived", payload);
+        } else if (this.connToHost && this.connToHost.open) {
+            this.connToHost.send({ type: "sendReaction", ...payload });
+        }
+    }
+
+    webrtcSendChatMessage(payload) {
+        if (this.isHost) {
+            const chatMsg = {
+                id: Date.now(),
+                sender: payload.playerName || "Host",
+                avatar: payload.avatar || "👾",
+                text: payload.text,
+                time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+            };
+            this.roomState.chatMessages.push(chatMsg);
+            this.broadcast("chatMessage", chatMsg);
+        } else if (this.connToHost && this.connToHost.open) {
+            this.connToHost.send({
+                type: "sendChatMessage",
+                sender: payload.playerName || "Guest",
+                avatar: payload.avatar || "🎮",
+                text: payload.text
+            });
+        }
+    }
+}
+
+// Global Singleton
+window.GameNetwork = new NetworkAdapter();

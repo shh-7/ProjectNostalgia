@@ -5,11 +5,25 @@
 
 ---
 
+## 🌐 Play Online Instantly
+
+The entire game runs **100% fully online** directly from this repository via GitHub Pages:
+
+### 👉 **[Play Live on GitHub Pages](https://shh-7.github.io/gamesfrompast/)**
+
+- **Solo Practice Mode**: Instant single-player word games with clues and streak tracking.
+- **Daily Word Challenge**: Deterministic daily puzzle synchronized for players worldwide.
+- **1v1 Real-Time Multiplayer**: Built with a dual-engine architecture:
+  - **PeerJS WebRTC (Serverless P2P)**: Direct browser-to-browser real-time data channels for rooms on GitHub Pages (zero server costs).
+  - **Socket.IO (WebSocket Server)**: Ultra-fast server-coordinated matchmaking when hosted on Node.js / Render / Railway.
+
+---
+
 ## ✨ Features & Game Modes
 
 ### 1. ⚔️ Classic Hangman Multiplayer (1v1 Duel)
 - **Room Matchmaking**: Create or join private 5-character rooms (e.g. `7K3Q9`).
-- **Direct Invite Link**: One-click link copying (`https://your-domain.com/room.html?code=7K3Q9`).
+- **Direct Invite Link**: One-click link copying (`https://shh-7.github.io/gamesfrompast/room.html?code=7K3Q9`).
 - **Custom Player Avatars**: Choose from 12 retro pixel avatars (👾, 🕹️, 📼, 🐱, 🚀, 🤠, 🍕, 🎸, 🦊, 🤖, 🎮, ⚡).
 - **Turn Timer**: Choose between Relaxed (no timer), 30s Blitz, or 45s Normal with real-time countdown urgency.
 - **In-Game Live Chat & Log**: Chat with opponents and see real-time guess events.
@@ -48,13 +62,28 @@
 
 ## 🛠️ Tech Stack
 
-- **Server**: Node.js, Express 5, Socket.IO 4.8
 - **Client**: Vanilla HTML5, CSS3, JavaScript (ES6+), Web Audio API, HTML5 Canvas
-- **Networking**: WebSockets via Socket.IO with automatic HTTP long-polling fallback
+- **P2P Multiplayer**: PeerJS WebRTC (zero-configuration serverless data channels on GitHub Pages)
+- **Node Server**: Express 5, Socket.IO 4.8 (for dedicated cloud deployments)
+- **CI/CD**: GitHub Actions workflow to auto-deploy on every push to `main`
 
 ---
 
-## 🚀 Quick Start (Local)
+## 🚀 How to Enable GitHub Pages (In this Repo)
+
+1. Open your repository on GitHub: [`github.com/shh-7/gamesfrompast`](https://github.com/shh-7/gamesfrompast).
+2. Go to **Settings** > **Pages** (in the left sidebar).
+3. Under **Build and deployment > Source**:
+   - Select **GitHub Actions** (recommended — uses the included [`.github/workflows/deploy.yml`](.github/workflows/deploy.yml)).
+   - *Or* select **Deploy from a branch** -> `main` / `(root)`.
+4. Your game will be live at:
+   ```
+   https://shh-7.github.io/gamesfrompast/
+   ```
+
+---
+
+## 🖥️ Local Development
 
 ### 1. Install Dependencies
 ```bash
@@ -70,47 +99,16 @@ For auto-reloading development:
 npm run dev
 ```
 
-### 3. Play
-Visit [http://localhost:3000](http://localhost:3000) in your browser.  
-Open a second browser tab (or incognito window) to join your own room code and test real-time multiplayer!
+### 3. Open in Browser
+Visit [http://localhost:3000](http://localhost:3000).
 
 ---
 
-## 🌐 Cloud Hosting (1-Click Ready)
+## ☁️ Cloud Server Deployment (Optional)
 
-- **Port Handling**: Configured with `process.env.PORT || 3000`.
-- **Healthcheck**: `/health` and `/api/stats` endpoints for platform uptime monitors.
-- **Render**: Connect repo, set Build Command to `npm install` and Start Command to `npm start`.
-- **Railway**: Click "New Project from GitHub Repo" — detects `package.json` automatically.
-- **VPS (PM2)**:
-  ```bash
-  npm install -g pm2
-  pm2 start server/server.js --name "project-nostalgia"
-  ```
-
----
-
-## 📁 Project Structure
-
-```text
-ProjectNostalgia/
-├── server/
-│   ├── server.js         # Express + Socket.IO server (lobbies, timer, chat, game engine)
-│   └── words.js          # 120+ words with nostalgic trivia hints & daily word generator
-├── client/
-│   ├── index.html        # Game arcade portal (hub, modals, profile, stats)
-│   ├── index.css         # Parchment & Midnight themes, Neobrutalist design
-│   ├── index.js          # Profile customizer, modals, daily word fetcher
-│   ├── room.html         # Multiplayer lobby, live arena, in-game chat
-│   ├── room.css          # Scaffold, arena shake, responsive touch keyboard
-│   ├── room.js           # Real-time state synchronization, turn timers, chat
-│   ├── solo.html         # Solo practice & Daily Challenge view
-│   ├── solo.js           # Offline engine, streak tracker, difficulty selector
-│   ├── audio.js          # Procedural Web Audio 8-bit retro sound synthesizer
-│   └── confetti.js       # HTML5 Canvas particle confetti engine
-├── package.json          # Node.js manifest & scripts
-└── README.md             # Documentation & hosting guide
-```
+If you prefer a dedicated Node.js WebSocket backend:
+- **Render**: Connect repository. Uses [`render.yaml`](render.yaml) automatically.
+- **Railway / Heroku**: Uses [`Procfile`](Procfile) and `package.json` automatically.
 
 ---
 

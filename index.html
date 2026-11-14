@@ -1,0 +1,22 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta http-equiv="refresh" content="0; url=client/">
+    <title>Project Nostalgia - Retro Childhood Games Online</title>
+    <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🕹️</text></svg>">
+    <script>
+        // Forward query params and hash to client directory
+        const search = window.location.search || "";
+        const hash = window.location.hash || "";
+        window.location.replace("client/" + search + hash);
+    </script>
+</head>
+<body style="background: #f4efe3; color: #222; font-family: -apple-system, BlinkMacSystemFont, sans-serif; display: flex; flex-direction: column; align-items: center; justify-content: center; height: 100vh; margin: 0; text-align: center;">
+    <div style="font-size: 48px; margin-bottom: 12px;">🕹️</div>
+    <h2 style="margin: 0; letter-spacing: 2px;">PROJECT NOSTALGIA</h2>
+    <p style="color: #666; margin-top: 8px;">Loading retro arcade...</p>
+    <p style="font-size: 13px;"><a href="client/" style="color: #222; font-weight: bold;">Click here if not redirected automatically</a></p>
+</body>
+</html>

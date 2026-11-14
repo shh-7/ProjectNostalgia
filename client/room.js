@@ -1,8 +1,9 @@
 // ===================================================
 // PROJECT NOSTALGIA - ROOM & MULTIPLAYER LOGIC
+// Compatible with both Node.js Socket.IO and WebRTC (GitHub Pages)
 // ===================================================
 
-const socket = io();
+const net = window.GameNetwork;
 
 // Parse room code from URL query parameter
 const urlParams = new URLSearchParams(window.location.search);
@@ -80,6 +81,33 @@ headerRoomCodeEl.textContent = roomCode;
 lobbyRoomCodeEl.textContent = roomCode;
 
 // ===================================================
+// IDENTITY HELPERS
+// ===================================================
+
+function getMyId() {
+    if (net.mode === "webrtc") {
+        return net.isHost ? "host" : "guest";
+    }
+    return net.socket ? net.socket.id : null;
+}
+
+function isMe(player) {
+    if (!player) return false;
+    const myId = getMyId();
+    if (myId && player.id === myId) return true;
+    return player.name === playerName;
+}
+
+function checkIsMyTurn(game) {
+    if (!game) return false;
+    const myId = getMyId();
+    if (myId && game.currentTurnId) {
+        return game.currentTurnId === myId;
+    }
+    return game.currentTurnName === playerName;
+}
+
+// ===================================================
 // THEME & AUDIO MANAGEMENT
 // ===================================================
 
@@ -134,7 +162,7 @@ copyCodeBtn.addEventListener("click", () => {
 
 copyLinkBtn.addEventListener("click", () => {
     if (window.soundFX) window.soundFX.playClick();
-    const inviteUrl = `${window.location.origin}/room.html?code=${roomCode}`;
+    const inviteUrl = `${window.location.origin}${window.location.pathname}?code=${roomCode}`;
     navigator.clipboard.writeText(inviteUrl).then(() => {
         showToast("✓ Invite link copied to clipboard!");
     }).catch(() => {
@@ -150,25 +178,26 @@ leaveRoomBtn.addEventListener("click", () => {
 });
 
 // ===================================================
-// SOCKET INITIALIZATION & JOINING
+// NETWORK INITIALIZATION & JOINING
 // ===================================================
 
-socket.on("connect", () => {
-    lobbyStatusEl.textContent = "Connecting to room...";
+lobbyStatusEl.textContent = "Connecting to room...";
 
-    socket.emit("joinRoom", {
+// Emit joinRoom on startup
+setTimeout(() => {
+    net.emit("joinRoom", {
         roomCode: roomCode,
         playerName: playerName,
         avatar: playerAvatar
     });
-});
+}, 200);
 
-socket.on("joinError", (err) => {
+net.on("joinError", (err) => {
     alert(err);
     window.location.href = "index.html";
 });
 
-socket.on("roomError", (err) => {
+net.on("roomError", (err) => {
     alert(err);
     window.location.href = "index.html";
 });
@@ -177,33 +206,33 @@ socket.on("roomError", (err) => {
 // STATE SYNCHRONIZATION
 // ===================================================
 
-socket.on("roomUpdated", (state) => {
+net.on("roomUpdated", (state) => {
     currentRoomState = state;
     renderRoom(state);
 });
 
-socket.on("gameStarted", (state) => {
+net.on("gameStarted", (state) => {
     currentRoomState = state;
     if (window.soundFX) window.soundFX.playClick();
     renderRoom(state);
 });
 
-socket.on("playerJoinedAnnouncement", (msg) => {
+net.on("playerJoinedAnnouncement", (msg) => {
     lobbyStatusEl.textContent = msg;
     if (window.soundFX) window.soundFX.playCorrect();
 });
 
-socket.on("playerLeftAnnouncement", (msg) => {
+net.on("playerLeftAnnouncement", (msg) => {
     lobbyStatusEl.textContent = msg;
     if (window.soundFX) window.soundFX.playWrong();
 });
 
-socket.on("turnNotice", (msg) => {
+net.on("turnNotice", (msg) => {
     gameMessage.textContent = msg;
     if (window.soundFX) window.soundFX.playWrong();
 });
 
-socket.on("guessResult", (data) => {
+net.on("guessResult", (data) => {
     if (data.isRoundOver) {
         if (data.isVictory) {
             if (window.soundFX) window.soundFX.playWin();
@@ -219,9 +248,8 @@ socket.on("guessResult", (data) => {
             if (window.soundFX) window.soundFX.playWrong();
             gameMessage.textContent = `❌ ${data.byPlayer} guessed '${data.letter}', which is not in the word!`;
 
-            // Screen Shake Effect
             arenaStage.classList.remove("shake");
-            void arenaStage.offsetWidth; // re-flow
+            void arenaStage.offsetWidth;
             arenaStage.classList.add("shake");
         }
     }
@@ -234,7 +262,7 @@ socket.on("guessResult", (data) => {
 function renderRoom(state) {
     if (!state) return;
 
-    const me = state.players.find(p => p.id === socket.id) || { isHost: false };
+    const me = state.players.find(p => isMe(p)) || state.players[0] || { isHost: false };
     const isHost = me.isHost;
 
     if (state.gameState === "lobby") {
@@ -270,7 +298,7 @@ function renderLobby(state, isHost) {
         item.innerHTML = `
             <div class="player-avatar">${p.avatar || "👾"}</div>
             <div class="player-info">
-                <span class="player-name">${p.name} ${p.id === socket.id ? "(You)" : ""}</span>
+                <span class="player-name">${p.name} ${isMe(p) ? "(You)" : ""}</span>
                 <span class="player-badge-tag">${p.isHost ? "👑 Host" : `Player ${idx + 1}`} • Score: ${p.score}</span>
             </div>
         `;
@@ -304,7 +332,7 @@ function renderLobby(state, isHost) {
 
 // Settings changes (Host only)
 function pushSettings() {
-    socket.emit("updateSettings", {
+    net.emit("updateSettings", {
         roomCode: roomCode,
         category: categorySelect.value,
         timerSeconds: timerSelect.value
@@ -326,13 +354,12 @@ startGameBtn.addEventListener("click", () => {
     if (window.soundFX) window.soundFX.playClick();
 
     if (currentRoomState && currentRoomState.mode === "custom") {
-        // Prompt for custom secret word
         customWordInput.value = "";
         customHintInput.value = "";
         customWordModal.style.display = "flex";
         setTimeout(() => customWordInput.focus(), 50);
     } else {
-        socket.emit("startGame", { roomCode: roomCode });
+        net.emit("startGame", { roomCode: roomCode });
     }
 });
 
@@ -351,7 +378,7 @@ submitCustomWordBtn.addEventListener("click", () => {
     }
 
     customWordModal.style.display = "none";
-    socket.emit("startGame", {
+    net.emit("startGame", {
         roomCode: roomCode,
         customWord: word,
         customHint: hint
@@ -401,11 +428,11 @@ function renderGame(state, me) {
     scoreboard.innerHTML = "";
     state.players.forEach(p => {
         const card = document.createElement("div");
-        const isCurrentTurn = game.currentTurnId === p.id && state.gameState === "playing";
+        const isCurrentTurn = (game.currentTurnId === p.id || game.currentTurnName === p.name) && state.gameState === "playing";
         card.className = `score-card ${isCurrentTurn ? "active-turn" : ""}`;
         card.innerHTML = `
             <span class="score-avatar">${p.avatar || "👾"}</span>
-            <span class="score-name">${p.isHost ? "👑 " : ""}${p.name} ${p.id === socket.id ? "(You)" : ""}</span>
+            <span class="score-name">${p.isHost ? "👑 " : ""}${p.name} ${isMe(p) ? "(You)" : ""}</span>
             <span class="score-points">${p.score} pts</span>
             ${p.roundsWon > 0 ? `<span>⭐ ${p.roundsWon}</span>` : ""}
         `;
@@ -413,7 +440,7 @@ function renderGame(state, me) {
     });
 
     // Turn Banner
-    const isMyTurn = game.currentTurnId === socket.id;
+    const isMyTurn = checkIsMyTurn(game);
     if (state.gameState === "playing") {
         roundOverCard.style.display = "none";
         if (state.players.length === 1) {
@@ -546,7 +573,7 @@ function handleGuess(letter) {
     const game = currentRoomState.game;
     if (!game) return;
 
-    if (currentRoomState.players.length > 1 && game.currentTurnId !== socket.id) {
+    if (currentRoomState.players.length > 1 && !checkIsMyTurn(game)) {
         return;
     }
 
@@ -555,7 +582,7 @@ function handleGuess(letter) {
 
     if (window.soundFX) window.soundFX.playKeyPress();
 
-    socket.emit("guessLetter", {
+    net.emit("guessLetter", {
         roomCode: roomCode,
         letter: letter
     });
@@ -573,7 +600,7 @@ window.addEventListener("keydown", (e) => {
 // Next Round Handler
 nextRoundBtn.addEventListener("click", () => {
     if (window.soundFX) window.soundFX.playClick();
-    socket.emit("nextRound", { roomCode: roomCode });
+    net.emit("nextRound", { roomCode: roomCode });
 });
 
 // Return to Lobby Handler
@@ -602,15 +629,17 @@ function renderChat(messages) {
 }
 
 function escapeHtml(str) {
-    return str.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+    return (str || "").replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
 }
 
 function sendChat() {
     const text = chatInput.value.trim();
     if (!text) return;
 
-    socket.emit("sendChatMessage", {
+    net.emit("sendChatMessage", {
         roomCode: roomCode,
+        playerName: playerName,
+        avatar: playerAvatar,
         text: text
     });
 
@@ -625,7 +654,7 @@ chatInput.addEventListener("keydown", (e) => {
     }
 });
 
-socket.on("chatMessage", (msg) => {
+net.on("chatMessage", (msg) => {
     const b = document.createElement("div");
     b.className = "chat-bubble";
     b.innerHTML = `
@@ -645,7 +674,7 @@ document.querySelectorAll(".reaction-btn").forEach(btn => {
         const emoji = btn.dataset.emoji;
         if (!emoji) return;
         if (window.soundFX) window.soundFX.playClick();
-        socket.emit("sendReaction", {
+        net.emit("sendReaction", {
             roomCode: roomCode,
             emoji: emoji,
             playerName: playerName
@@ -653,7 +682,7 @@ document.querySelectorAll(".reaction-btn").forEach(btn => {
     });
 });
 
-socket.on("reactionReceived", (data) => {
+net.on("reactionReceived", (data) => {
     spawnFloatingEmoji(data.emoji);
 });
 

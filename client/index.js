@@ -2,7 +2,7 @@
 // PROJECT NOSTALGIA - ARCADE HOME CLIENT LOGIC
 // ===================================================
 
-const socket = io();
+const net = window.GameNetwork;
 
 // State
 let playerProfile = {
@@ -92,7 +92,14 @@ applyTheme(playerProfile.theme);
 updateProfileUI();
 updateAudioUI();
 
-// Fetch daily word metadata & platform stats
+// Set daily word metadata immediately from local dictionary
+if (window.NostalgiaWords) {
+    const daily = window.NostalgiaWords.getDailyWord();
+    dailyDateText.textContent = `📅 ${daily.dateString}`;
+    dailyCategoryText.textContent = daily.categoryName;
+}
+
+// Attempt API fetch if running on Node backend
 fetch("/api/daily").then(res => res.json()).then(data => {
     if (data) {
         dailyDateText.textContent = `📅 ${data.date}`;
@@ -223,7 +230,7 @@ confirmCreateRoomBtn.addEventListener("click", () => {
     confirmCreateRoomBtn.disabled = true;
     confirmCreateRoomBtn.textContent = "Creating...";
 
-    socket.emit("createRoom", {
+    net.emit("createRoom", {
         playerName: playerProfile.name,
         avatar: playerProfile.avatar,
         category: roomCategorySelect.value,
@@ -232,7 +239,7 @@ confirmCreateRoomBtn.addEventListener("click", () => {
     });
 });
 
-socket.on("roomCreated", (data) => {
+net.on("roomCreated", (data) => {
     window.location.href = `room.html?code=${data.roomCode}`;
 });
 
