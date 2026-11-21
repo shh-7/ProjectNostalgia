@@ -386,7 +386,7 @@ statsBtn.addEventListener("click", () => {
 // ===================================================
 
 // Replace with your actual Google OAuth Client ID from console.cloud.google.com
-const GOOGLE_CLIENT_ID = "YOUR_GOOGLE_CLIENT_ID.apps.googleusercontent.com";
+const GOOGLE_CLIENT_ID = "957266937128-mcoeuhc89oq49c7lo8sscqa95novq83p.apps.googleusercontent.com";
 
 function parseJwt(token) {
     try {
