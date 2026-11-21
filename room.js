@@ -365,6 +365,15 @@ window.addEventListener("click", (e) => {
     }
 });
 
+// Room Logo indicator - protected against accidental departure
+const roomLogoIndicator = document.getElementById("roomLogoIndicator");
+if (roomLogoIndicator) {
+    roomLogoIndicator.addEventListener("click", () => {
+        if (window.soundFX) window.soundFX.playClick();
+        showToast("⚠️ In active match! Use '← Exit' to return to home.");
+    });
+}
+
 leaveRoomBtn.addEventListener("click", () => {
     if (window.soundFX) window.soundFX.playClick();
     if (confirm("Are you sure you want to exit the room?")) {

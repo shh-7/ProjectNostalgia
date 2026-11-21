@@ -60,6 +60,49 @@ body {
     margin-bottom: 20px;
 }
 
+.room-nav-left {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.nav-brand-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    background: var(--surface-color);
+    border: var(--border-width) solid var(--border-color);
+    border-radius: 8px;
+    padding: 6px 12px;
+    color: var(--text-primary);
+    text-decoration: none;
+    font-weight: 800;
+    font-size: 13px;
+    letter-spacing: 1px;
+    box-shadow: var(--btn-shadow);
+    cursor: pointer;
+    transition: transform 0.15s ease, background 0.15s ease;
+    user-select: none;
+}
+
+.nav-brand-btn:hover {
+    transform: translateY(-1px);
+    background: var(--surface-secondary);
+}
+
+.nav-brand-btn .brand-mascot {
+    font-size: 18px;
+}
+
+.nav-brand-btn.in-room {
+    cursor: default;
+    opacity: 0.95;
+}
+
+.nav-brand-btn.in-room:hover {
+    transform: none;
+}
+
 .top-nav-actions {
     display: flex;
     gap: 8px;

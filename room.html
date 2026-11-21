@@ -15,7 +15,13 @@
 
         <!-- TOP BAR NAVIGATION -->
         <div class="top-nav">
-            <button class="nav-btn" id="leaveRoomBtn" title="Leave Room">← Exit</button>
+            <div class="room-nav-left">
+                <span class="nav-brand-btn in-room" id="roomLogoIndicator" title="In Multiplayer Room (Use ← Exit to leave)">
+                    <span class="brand-mascot">🕹️</span>
+                    <span class="nav-brand-title">NOSTALGIA</span>
+                </span>
+                <button class="nav-btn" id="leaveRoomBtn" title="Leave Room">← Exit</button>
+            </div>
             <div class="room-pill">
                 <span class="room-pill-label">ROOM:</span>
                 <span class="room-pill-code" id="headerRoomCode">-----</span>

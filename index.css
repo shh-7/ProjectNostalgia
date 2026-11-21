@@ -80,6 +80,12 @@ body {
     text-decoration: none;
     color: inherit;
     user-select: none;
+    cursor: pointer;
+    transition: opacity 0.15s ease;
+}
+
+.brand:hover {
+    opacity: 0.85;
 }
 
 .brand-mascot {
