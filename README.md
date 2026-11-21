@@ -9,7 +9,7 @@
 
 The entire game runs **100% fully online** directly from this repository via GitHub Pages:
 
-### 👉 **[Play Live on GitHub Pages](https://shh-7.github.io/gamesfrompast/)**
+### 👉 **[Play Live on GitHub Pages](https://shh-7.github.io/ProjectNostalgia/)**
 
 - **Solo Practice Mode**: Instant single-player word games with clues and streak tracking.
 - **Daily Word Challenge**: Deterministic daily puzzle synchronized for players worldwide.
@@ -23,7 +23,7 @@ The entire game runs **100% fully online** directly from this repository via Git
 
 ### 1. ⚔️ Classic Hangman Multiplayer (1v1 Duel)
 - **Room Matchmaking**: Create or join private 5-character rooms (e.g. `7K3Q9`).
-- **Direct Invite Link**: One-click link copying (`https://shh-7.github.io/gamesfrompast/room.html?code=7K3Q9`).
+- **Direct Invite Link**: One-click link copying (`https://shh-7.github.io/ProjectNostalgia/room.html?code=7K3Q9`).
 - **Custom Player Avatars**: Choose from 12 retro pixel avatars (👾, 🕹️, 📼, 🐱, 🚀, 🤠, 🍕, 🎸, 🦊, 🤖, 🎮, ⚡).
 - **Turn Timer**: Choose between Relaxed (no timer), 30s Blitz, or 45s Normal with real-time countdown urgency.
 - **In-Game Live Chat & Log**: Chat with opponents and see real-time guess events.
@@ -71,14 +71,14 @@ The entire game runs **100% fully online** directly from this repository via Git
 
 ## 🚀 How to Enable GitHub Pages (In this Repo)
 
-1. Open your repository on GitHub: [`github.com/shh-7/gamesfrompast`](https://github.com/shh-7/gamesfrompast).
+1. Open your repository on GitHub: [`github.com/shh-7/ProjectNostalgia`](https://github.com/shh-7/ProjectNostalgia).
 2. Go to **Settings** > **Pages** (in the left sidebar).
 3. Under **Build and deployment > Source**:
    - Select **GitHub Actions** (recommended — uses the included [`.github/workflows/deploy.yml`](.github/workflows/deploy.yml)).
    - *Or* select **Deploy from a branch** -> `main` / `(root)`.
 4. Your game will be live at:
    ```
-   https://shh-7.github.io/gamesfrompast/
+   https://shh-7.github.io/ProjectNostalgia/
    ```
 
 ---
