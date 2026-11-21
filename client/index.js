@@ -475,3 +475,279 @@ document.querySelectorAll("[data-close='emailLoginModal']").forEach(el => {
         if (emailLoginModal) emailLoginModal.style.display = "none";
     });
 });
+
+// ===================================================
+// QR CODE SCANNER (Instant Join via Camera)
+// ===================================================
+
+const openScanQRBtn = document.getElementById("openScanQRBtn");
+const modalScanQRBtn = document.getElementById("modalScanQRBtn");
+const qrScannerModal = document.getElementById("qrScannerModal");
+const scannerVideo = document.getElementById("scannerVideo");
+const scannerCanvas = document.getElementById("scannerCanvas");
+const scannerStatusText = document.getElementById("scannerStatusText");
+const scannerErrorMsg = document.getElementById("scannerErrorMsg");
+const switchCameraBtn = document.getElementById("switchCameraBtn");
+const qrFileInput = document.getElementById("qrFileInput");
+
+let scannerStream = null;
+let isScanning = false;
+let currentFacingMode = "environment";
+let scanAnimFrame = null;
+let barcodeDetectorInstance = null;
+
+if (typeof window !== "undefined" && "BarcodeDetector" in window) {
+    try {
+        barcodeDetectorInstance = new BarcodeDetector({ formats: ["qr_code"] });
+    } catch (e) {
+        barcodeDetectorInstance = null;
+    }
+}
+
+async function startQRScanner() {
+    if (!scannerVideo || !qrScannerModal) return;
+    openModal(qrScannerModal);
+    
+    if (scannerErrorMsg) scannerErrorMsg.style.display = "none";
+    if (scannerStatusText) scannerStatusText.textContent = "Starting camera...";
+    
+    try {
+        stopQRScanner();
+        
+        const constraints = {
+            video: {
+                facingMode: { ideal: currentFacingMode },
+                width: { ideal: 640 },
+                height: { ideal: 480 }
+            },
+            audio: false
+        };
+        
+        scannerStream = await navigator.mediaDevices.getUserMedia(constraints);
+        scannerVideo.srcObject = scannerStream;
+        await scannerVideo.play();
+        
+        isScanning = true;
+        if (scannerStatusText) scannerStatusText.textContent = "Point camera at room QR code...";
+        
+        try {
+            const devices = await navigator.mediaDevices.enumerateDevices();
+            const videoDevices = devices.filter(d => d.kind === "videoinput");
+            if (switchCameraBtn) {
+                switchCameraBtn.style.display = videoDevices.length > 1 ? "inline-block" : "none";
+            }
+        } catch (e) {}
+        
+        requestAnimationFrame(scanVideoLoop);
+    } catch (err) {
+        console.error("Camera access error:", err);
+        isScanning = false;
+        if (scannerStatusText) scannerStatusText.textContent = "Camera unavailable";
+        if (scannerErrorMsg) {
+            scannerErrorMsg.textContent = "Camera access error (" + (err.message || err.name) + "). You can upload a QR image or enter code manually.";
+            scannerErrorMsg.style.display = "block";
+        }
+    }
+}
+
+function stopQRScanner() {
+    isScanning = false;
+    if (scanAnimFrame) {
+        cancelAnimationFrame(scanAnimFrame);
+        scanAnimFrame = null;
+    }
+    if (scannerStream) {
+        scannerStream.getTracks().forEach(track => {
+            try { track.stop(); } catch (e) {}
+        });
+        scannerStream = null;
+    }
+    if (scannerVideo) {
+        scannerVideo.srcObject = null;
+    }
+}
+
+async function scanVideoLoop() {
+    if (!isScanning) return;
+    
+    if (scannerVideo.readyState === scannerVideo.HAVE_ENOUGH_DATA) {
+        const vWidth = scannerVideo.videoWidth;
+        const vHeight = scannerVideo.videoHeight;
+        
+        let detectedText = null;
+        
+        // 1. Hardware accelerated BarcodeDetector
+        if (barcodeDetectorInstance) {
+            try {
+                const barcodes = await barcodeDetectorInstance.detect(scannerVideo);
+                if (barcodes && barcodes.length > 0 && barcodes[0].rawValue) {
+                    detectedText = barcodes[0].rawValue;
+                }
+            } catch (e) {}
+        }
+        
+        // 2. jsQR universal fallback
+        if (!detectedText && typeof jsQR !== "undefined" && scannerCanvas) {
+            scannerCanvas.width = vWidth;
+            scannerCanvas.height = vHeight;
+            const ctx = scannerCanvas.getContext("2d", { willReadFrequently: true });
+            ctx.drawImage(scannerVideo, 0, 0, vWidth, vHeight);
+            const imageData = ctx.getImageData(0, 0, vWidth, vHeight);
+            const code = jsQR(imageData.data, imageData.width, imageData.height, {
+                inversionAttempts: "dontInvert"
+            });
+            if (code && code.data) {
+                detectedText = code.data;
+            }
+        }
+        
+        if (detectedText) {
+            const handled = handleDetectedQR(detectedText);
+            if (handled) {
+                return;
+            }
+        }
+    }
+    
+    if (isScanning) {
+        scanAnimFrame = requestAnimationFrame(scanVideoLoop);
+    }
+}
+
+function handleDetectedQR(rawText) {
+    if (!rawText) return false;
+    const text = rawText.trim();
+    console.log("[QR Scanner] Detected raw text:", text);
+    
+    let targetCode = "";
+    let targetPwd = "";
+    let isFullUrl = false;
+    let finalUrl = "";
+    
+    try {
+        let parsedUrl = null;
+        if (text.startsWith("http://") || text.startsWith("https://")) {
+            parsedUrl = new URL(text);
+        } else if (text.includes("room.html") || text.includes("code=")) {
+            parsedUrl = new URL(text, window.location.origin);
+        }
+        
+        if (parsedUrl) {
+            targetCode = (parsedUrl.searchParams.get("code") || "").trim().toUpperCase();
+            targetPwd = parsedUrl.searchParams.get("pwd") || "";
+            if (targetCode && targetCode.length >= 4) {
+                isFullUrl = true;
+                finalUrl = parsedUrl.toString();
+            }
+        }
+    } catch (e) {}
+    
+    if (!targetCode) {
+        const match = text.match(/[A-Z0-9]{5}/i);
+        if (match) {
+            targetCode = match[0].toUpperCase();
+        }
+    }
+    
+    if (targetCode && targetCode.length >= 4) {
+        stopQRScanner();
+        if (window.soundFX) window.soundFX.playWin();
+        if (scannerStatusText) scannerStatusText.textContent = "✅ Found Room " + targetCode + "! Entering...";
+        
+        setTimeout(() => {
+            if (isFullUrl && finalUrl.includes("room.html")) {
+                window.location.href = finalUrl;
+            } else {
+                let dest = "room.html?code=" + encodeURIComponent(targetCode);
+                if (targetPwd) dest += "&pwd=" + encodeURIComponent(targetPwd);
+                window.location.href = dest;
+            }
+        }, 400);
+        return true;
+    } else {
+        if (scannerErrorMsg) {
+            scannerErrorMsg.textContent = "Unrecognized QR format: " + text.substring(0, 25);
+            scannerErrorMsg.style.display = "block";
+            setTimeout(() => {
+                if (scannerErrorMsg) scannerErrorMsg.style.display = "none";
+            }, 3000);
+        }
+        return false;
+    }
+}
+
+if (switchCameraBtn) {
+    switchCameraBtn.addEventListener("click", () => {
+        if (window.soundFX) window.soundFX.playClick();
+        currentFacingMode = currentFacingMode === "environment" ? "user" : "environment";
+        startQRScanner();
+    });
+}
+
+if (qrFileInput) {
+    qrFileInput.addEventListener("change", (e) => {
+        const file = e.target.files && e.target.files[0];
+        if (!file) return;
+        
+        const reader = new FileReader();
+        reader.onload = (event) => {
+            const img = new Image();
+            img.onload = () => {
+                const canvas = scannerCanvas || document.createElement("canvas");
+                canvas.width = img.width;
+                canvas.height = img.height;
+                const ctx = canvas.getContext("2d");
+                ctx.drawImage(img, 0, 0);
+                const imageData = ctx.getImageData(0, 0, img.width, img.height);
+                
+                let found = null;
+                if (typeof jsQR !== "undefined") {
+                    const code = jsQR(imageData.data, imageData.width, imageData.height);
+                    if (code && code.data) found = code.data;
+                }
+                
+                if (found) {
+                    handleDetectedQR(found);
+                } else {
+                    if (scannerErrorMsg) {
+                        scannerErrorMsg.textContent = "No valid QR code found in uploaded image.";
+                        scannerErrorMsg.style.display = "block";
+                    }
+                }
+            };
+            img.src = event.target.result;
+        };
+        reader.readAsDataURL(file);
+    });
+}
+
+if (openScanQRBtn) {
+    openScanQRBtn.addEventListener("click", () => {
+        if (window.soundFX) window.soundFX.playClick();
+        startQRScanner();
+    });
+}
+
+if (modalScanQRBtn) {
+    modalScanQRBtn.addEventListener("click", () => {
+        if (window.soundFX) window.soundFX.playClick();
+        closeModal(joinRoomModal);
+        startQRScanner();
+    });
+}
+
+if (qrScannerModal) {
+    const observer = new MutationObserver(() => {
+        if (qrScannerModal.style.display === "none") {
+            stopQRScanner();
+        }
+    });
+    observer.observe(qrScannerModal, { attributes: true, attributeFilter: ["style"] });
+}
+
+document.querySelectorAll("[data-close='qrScannerModal']").forEach(el => {
+    el.addEventListener("click", () => {
+        stopQRScanner();
+        if (qrScannerModal) closeModal(qrScannerModal);
+    });
+});

@@ -803,3 +803,89 @@ body.theme-midnight .nav-pill.signed-in {
     background: #1ebe5a;
     transform: translateY(-1px);
 }
+
+/* QR Button & Scanner Modal Styling */
+.btn-qr {
+    background: #6366f1 !important;
+    color: #ffffff !important;
+}
+.btn-qr:hover {
+    background: #4f46e5 !important;
+}
+
+.qr-scanner-viewport {
+    position: relative;
+    width: 100%;
+    max-width: 320px;
+    height: 240px;
+    margin: 0 auto;
+    background: #000000;
+    border-radius: 12px;
+    overflow: hidden;
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.4);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.qr-scanner-viewport video {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+}
+
+.qr-target-box {
+    position: absolute;
+    width: 180px;
+    height: 180px;
+    pointer-events: none;
+    box-sizing: border-box;
+}
+
+.qr-target-box .corner {
+    position: absolute;
+    width: 22px;
+    height: 22px;
+    border-color: #00e5ff;
+    border-style: solid;
+    box-shadow: 0 0 8px #00e5ff;
+}
+
+.qr-target-box .corner.tl { top: 0; left: 0; border-width: 3px 0 0 3px; border-radius: 4px 0 0 0; }
+.qr-target-box .corner.tr { top: 0; right: 0; border-width: 3px 3px 0 0; border-radius: 0 4px 0 0; }
+.qr-target-box .corner.bl { bottom: 0; left: 0; border-width: 0 0 3px 3px; border-radius: 0 0 0 4px; }
+.qr-target-box .corner.br { bottom: 0; right: 0; border-width: 0 3px 3px 0; border-radius: 0 0 4px 0; }
+
+.qr-scan-line {
+    position: absolute;
+    left: 0;
+    right: 0;
+    height: 2px;
+    background: linear-gradient(90deg, transparent, #00e5ff, transparent);
+    box-shadow: 0 0 10px #00e5ff;
+    animation: scanSweep 2s ease-in-out infinite;
+}
+
+@keyframes scanSweep {
+    0% { top: 5%; opacity: 0; }
+    15% { opacity: 1; }
+    85% { opacity: 1; }
+    100% { top: 95%; opacity: 0; }
+}
+
+.scanner-status {
+    font-size: 12px;
+    color: var(--text-muted);
+    margin-top: 10px;
+    font-weight: 600;
+}
+
+.scanner-error {
+    font-size: 12px;
+    color: #ff5252;
+    background: rgba(255, 82, 82, 0.1);
+    border: 1px solid rgba(255, 82, 82, 0.3);
+    padding: 6px 12px;
+    border-radius: 6px;
+    margin-top: 10px;
+}

@@ -1,4 +1,4 @@
-<!DOCTYPE html>
+﻿<!DOCTYPE html>
 <html lang="en">
 
 <head>
@@ -43,6 +43,7 @@
                 <div class="code-btn-group">
                     <button class="btn-action" id="copyCodeBtn">📋 Copy Code</button>
                     <button class="btn-action" id="copyLinkBtn">🔗 Copy Link</button>
+                    <button class="btn-action btn-qr" id="showQRModalBtn">📷 Show QR</button>
                     <button class="btn-action btn-whatsapp" id="shareQRBtn">💬 Share via WhatsApp</button>
                 </div>
                 <div class="toast-feedback" id="copyToast" style="display: none;">✓ Copied to clipboard!</div>
@@ -269,6 +270,34 @@
         </div>
     </div>
 
+
+    <!-- QR Code Modal for Instant Join -->
+    <div class="modal-overlay" id="qrModal" style="display: none;">
+        <div class="modal-box text-center" style="max-width: 380px; width: 92%;">
+            <div class="modal-header">
+                <h3>📷 Instant Join QR Code</h3>
+                <button class="modal-close-btn" data-close="qrModal">×</button>
+            </div>
+            <div class="modal-body" style="display: flex; flex-direction: column; align-items: center; padding: 18px 20px;">
+                <p style="font-size: 13px; color: var(--text-muted); margin: 0 0 14px; text-align: center;">
+                    Scan with any phone camera or QR scanner to join this room instantly!
+                </p>
+                <div id="qrCodeWrapper" class="retro-qr-frame">
+                    <div id="qrCodeContainer"></div>
+                </div>
+                <div class="qr-info-card" style="margin-top: 14px; width: 100%; text-align: center;">
+                    <div style="font-size: 11px; color: var(--text-muted); text-transform: uppercase; letter-spacing: 1px;">Room Code</div>
+                    <div id="qrRoomCodeBadge" style="font-family: var(--font-pixel, monospace); font-size: 24px; font-weight: 800; color: var(--accent-neon, #ffd700); letter-spacing: 4px; margin: 2px 0;">-----</div>
+                    <div id="qrPasswordBadge" style="font-size: 12px; color: #4ade80; display: none;">🔒 Room Password Included in QR</div>
+                    <div id="qrUrlPreview" style="font-size: 10px; color: var(--text-muted); word-break: break-all; margin-top: 6px; padding: 4px 8px; background: rgba(0,0,0,0.06); border-radius: 4px;"></div>
+                </div>
+            </div>
+            <div class="modal-actions" style="justify-content: center; gap: 8px;">
+                <button class="btn-secondary" data-close="qrModal">Close</button>
+                <button class="btn-primary" id="modalCopyLinkBtn">🔗 Copy Join Link</button>
+            </div>
+        </div>
+    </div>
     <!-- Scripts (Served locally for 100% reliable offline/online operation) -->
     <script src="words.js"></script>
     <script src="confetti.js"></script>
@@ -276,8 +305,10 @@
     <script src="socket.io.min.js"></script>
     <script src="peerjs.min.js"></script>
     <script src="network.js"></script>
+    <script src="qrcode.min.js"></script>
     <script src="room.js"></script>
 
 </body>
 
 </html>
+

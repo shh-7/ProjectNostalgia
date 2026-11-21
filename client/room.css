@@ -1230,3 +1230,28 @@ body.theme-midnight .inactivity-warning {
     margin-top: 6px;
     font-style: italic;
 }
+
+/* QR Code & Share Styling */
+.btn-qr {
+    background: #6366f1 !important;
+    color: #ffffff !important;
+}
+.btn-qr:hover {
+    background: #4f46e5 !important;
+}
+.retro-qr-frame {
+    background: #ffffff;
+    padding: 14px;
+    border-radius: 12px;
+    box-shadow: 0 6px 20px rgba(0, 0, 0, 0.2), 0 0 0 2px var(--border-color, #444);
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+}
+#qrCodeContainer img,
+#qrCodeContainer canvas {
+    display: block;
+    max-width: 100%;
+    height: auto;
+    border-radius: 4px;
+}

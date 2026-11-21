@@ -8,6 +8,7 @@ const net = window.GameNetwork;
 // Parse room code from URL query parameter
 const urlParams = new URLSearchParams(window.location.search);
 const roomCode = (urlParams.get("code") || "").trim().toUpperCase();
+let activeRoomCode = roomCode;
 
 if (!roomCode) {
     alert("No room code specified. Returning to home.");
@@ -240,19 +241,35 @@ function showToast(message) {
     }, 2500);
 }
 
+function getRoomJoinUrl() {
+    const code = activeRoomCode || (currentRoomState && currentRoomState.roomCode) || roomCode;
+    const pwd = (currentRoomState && currentRoomState.password) ? currentRoomState.password : (urlPwd || (roomPasswordInput ? roomPasswordInput.value.trim() : "") || (hostSettings && hostSettings.password) || "");
+    const origin = window.location.origin;
+    let pathname = window.location.pathname;
+    if (!pathname.endsWith("room.html")) {
+        if (!pathname.endsWith("/")) pathname += "/";
+        pathname += "room.html";
+    }
+    let url = `${origin}${pathname}?code=${encodeURIComponent(code)}`;
+    if (pwd) {
+        url += `&pwd=${encodeURIComponent(pwd)}`;
+    }
+    return url;
+}
+
 copyCodeBtn.addEventListener("click", () => {
     if (window.soundFX) window.soundFX.playClick();
-    navigator.clipboard.writeText(roomCode).then(() => {
+    const code = activeRoomCode || roomCode;
+    navigator.clipboard.writeText(code).then(() => {
         showToast("✓ Room code copied to clipboard!");
     }).catch(() => {
-        showToast(`Code: ${roomCode}`);
+        showToast(`Code: ${code}`);
     });
 });
 
 copyLinkBtn.addEventListener("click", () => {
     if (window.soundFX) window.soundFX.playClick();
-    const pwd = roomPasswordInput ? roomPasswordInput.value.trim() : "";
-    const inviteUrl = `${window.location.origin}${window.location.pathname}?code=${roomCode}${pwd ? "&pwd=" + encodeURIComponent(pwd) : ""}`;
+    const inviteUrl = getRoomJoinUrl();
     navigator.clipboard.writeText(inviteUrl).then(() => {
         showToast("✓ Invite link copied! Share it with your friend.");
     }).catch(() => {
@@ -264,13 +281,89 @@ copyLinkBtn.addEventListener("click", () => {
 if (shareQRBtn) {
     shareQRBtn.addEventListener("click", () => {
         if (window.soundFX) window.soundFX.playClick();
-        const pwd = roomPasswordInput ? roomPasswordInput.value.trim() : "";
-        const inviteUrl = `${window.location.origin}${window.location.pathname}?code=${roomCode}${pwd ? "&pwd=" + encodeURIComponent(pwd) : ""}`;
-        const text = `🕹️ Join my Nostalgia Hangman room!\nRoom Code: *${roomCode}*\nLink: ${inviteUrl}`;
+        const code = activeRoomCode || roomCode;
+        const inviteUrl = getRoomJoinUrl();
+        const text = `🕹️ Join my Nostalgia Hangman room!\nRoom Code: *${code}*\nLink: ${inviteUrl}`;
         const waUrl = `https://wa.me/?text=${encodeURIComponent(text)}`;
         window.open(waUrl, "_blank");
     });
 }
+
+// QR Code Modal for Instant Join
+const showQRModalBtn = document.getElementById("showQRModalBtn");
+const qrModal = document.getElementById("qrModal");
+const qrCodeContainer = document.getElementById("qrCodeContainer");
+const qrRoomCodeBadge = document.getElementById("qrRoomCodeBadge");
+const qrPasswordBadge = document.getElementById("qrPasswordBadge");
+const qrUrlPreview = document.getElementById("qrUrlPreview");
+const modalCopyLinkBtn = document.getElementById("modalCopyLinkBtn");
+
+function openQRModal() {
+    if (!qrModal || !qrCodeContainer) return;
+    if (window.soundFX) window.soundFX.playClick();
+
+    const joinUrl = getRoomJoinUrl();
+    const code = activeRoomCode || (currentRoomState && currentRoomState.roomCode) || roomCode;
+    const pwd = (currentRoomState && currentRoomState.password) ? currentRoomState.password : (urlPwd || (roomPasswordInput ? roomPasswordInput.value.trim() : "") || (hostSettings && hostSettings.password) || "");
+
+    if (qrRoomCodeBadge) qrRoomCodeBadge.textContent = code;
+    if (qrPasswordBadge) qrPasswordBadge.style.display = pwd ? "block" : "none";
+    if (qrUrlPreview) qrUrlPreview.textContent = joinUrl;
+
+    qrCodeContainer.innerHTML = "";
+    if (typeof QRCode !== "undefined") {
+        try {
+            new QRCode(qrCodeContainer, {
+                text: joinUrl,
+                width: 200,
+                height: 200,
+                colorDark: "#000000",
+                colorLight: "#ffffff",
+                correctLevel: QRCode.CorrectLevel.M
+            });
+        } catch (e) {
+            console.error("QR Code Error:", e);
+            qrCodeContainer.innerHTML = `<p style="color:#e53e3e;font-size:12px;">Failed to render QR Code</p>`;
+        }
+    } else {
+        qrCodeContainer.innerHTML = `<p style="color:#e53e3e;font-size:12px;">QR library loading...</p>`;
+    }
+
+    qrModal.style.display = "flex";
+}
+
+if (showQRModalBtn) {
+    showQRModalBtn.addEventListener("click", openQRModal);
+}
+
+if (modalCopyLinkBtn) {
+    modalCopyLinkBtn.addEventListener("click", () => {
+        if (window.soundFX) window.soundFX.playClick();
+        const joinUrl = getRoomJoinUrl();
+        navigator.clipboard.writeText(joinUrl).then(() => {
+            modalCopyLinkBtn.textContent = "✓ Copied Link!";
+            setTimeout(() => { modalCopyLinkBtn.textContent = "🔗 Copy Join Link"; }, 2000);
+        }).catch(() => {
+            prompt("Copy this join URL:", joinUrl);
+        });
+    });
+}
+
+// Generic modal close button handler for room.html
+document.querySelectorAll(".modal-close-btn, [data-close]").forEach(btn => {
+    btn.addEventListener("click", () => {
+        if (window.soundFX) window.soundFX.playClick();
+        const targetId = btn.dataset.close || (btn.closest(".modal-overlay") && btn.closest(".modal-overlay").id);
+        const modal = document.getElementById(targetId);
+        if (modal) modal.style.display = "none";
+    });
+});
+
+window.addEventListener("click", (e) => {
+    if (e.target.classList.contains("modal-overlay")) {
+        e.target.style.display = "none";
+    }
+});
 
 leaveRoomBtn.addEventListener("click", () => {
     if (window.soundFX) window.soundFX.playClick();
@@ -318,6 +411,7 @@ if (isHostParam) {
 
 net.on("roomCreated", (data) => {
     if (data && data.roomCode) {
+        activeRoomCode = data.roomCode;
         headerRoomCodeEl.textContent = data.roomCode;
         lobbyRoomCodeEl.textContent = data.roomCode;
     }
