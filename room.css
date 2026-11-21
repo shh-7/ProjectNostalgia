@@ -1222,23 +1222,317 @@ body.theme-midnight .puzzle-tile.is-blank .tile-letter {
     color: var(--text-muted);
 }
 
-/* RESPONSIVE DESIGN */
+/* ===================================================
+   RESPONSIVE DESIGN & MULTI-DISPLAY OPTIMIZATION
+=================================================== */
+
+/* Virtual keyboard fluid scaling - prevents overflow on small screens */
+.keyboard-container {
+    width: 100%;
+    max-width: 520px;
+    margin: 0 auto 16px;
+}
+
+.keyboard-row {
+    width: 100%;
+    display: flex;
+    justify-content: center;
+    gap: clamp(3px, 1.1vw, 6px);
+}
+
+.key-btn {
+    flex: 1 1 0;
+    max-width: 38px;
+    min-width: clamp(22px, 6.2vw, 36px);
+    height: clamp(36px, 8.5vw, 44px);
+    font-size: clamp(12px, 3.4vw, 16px);
+    padding: 0;
+    touch-action: manipulation;
+    -webkit-tap-highlight-color: transparent;
+}
+
+/* Word stage letter slots fluid scaling */
+.word-slots {
+    gap: clamp(4px, 1.2vw, 8px);
+}
+
+.letter-slot {
+    width: clamp(20px, 5.5vw, 36px);
+    height: clamp(32px, 8vw, 48px);
+    font-size: clamp(16px, 4.5vw, 26px);
+}
+
+.letter-slot.space {
+    width: clamp(8px, 2.5vw, 16px);
+}
+
+/* Modals Safe Viewport & Touch Scrolling */
+.modal-overlay {
+    height: 100vh;
+    height: 100dvh;
+    overflow-y: auto;
+    -webkit-overflow-scrolling: touch;
+    padding: max(10px, env(safe-area-inset-top, 10px)) max(10px, env(safe-area-inset-right, 10px)) max(12px, env(safe-area-inset-bottom, 12px)) max(10px, env(safe-area-inset-left, 10px));
+}
+
+.modal-box {
+    max-height: 90vh;
+    max-height: 90dvh;
+    display: flex;
+    flex-direction: column;
+    overflow-y: auto;
+    width: min(460px, 96vw);
+}
+
+.modal-box-large {
+    width: min(600px, 96vw);
+}
+
+.modal-body {
+    overflow-y: auto;
+    flex: 1 1 auto;
+    -webkit-overflow-scrolling: touch;
+}
+
+/* Large Screens (> 1200px) */
+@media (min-width: 1200px) {
+    .room-container {
+        width: min(940px, 100%);
+    }
+    .arena-stage {
+        gap: 32px;
+        padding: 24px;
+    }
+}
+
+/* Tablets & Small Desktops (<= 860px) */
+@media (max-width: 860px) {
+    .arena-stage {
+        gap: 18px;
+        padding: 16px;
+    }
+    .code-btn-group {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 8px;
+        justify-content: center;
+    }
+    .code-btn-group .btn-action {
+        flex: 1 1 auto;
+        min-width: 130px;
+    }
+}
+
+/* Standard Mobile (<= 700px) */
 @media (max-width: 700px) {
+    body {
+        align-items: flex-start;
+        padding-top: max(10px, env(safe-area-inset-top, 10px));
+        padding-bottom: max(18px, env(safe-area-inset-bottom, 18px));
+    }
+
+    .room-container {
+        width: 100%;
+    }
+
     .arena-stage {
         flex-direction: column;
-        gap: 14px;
+        gap: 12px;
+        padding: 14px 10px;
+    }
+
+    .hangman-box {
+        width: 150px;
+        height: 185px;
+    }
+
+    .gallows {
+        transform: scale(0.92);
+        transform-origin: center top;
+    }
+
+    .top-nav {
+        margin-bottom: 14px;
+    }
+
+    .room-pill {
+        padding: 4px 10px;
+        font-size: 11px;
+    }
+
+    .nav-btn {
+        padding: 6px 10px;
+        font-size: 12px;
+    }
+
+    .category-card, .room-code-card {
+        padding: 16px 12px;
+    }
+
+    .code-display {
+        font-size: clamp(28px, 9vw, 42px);
+        letter-spacing: clamp(4px, 1.5vw, 8px);
+    }
+
+    .settings-row {
+        flex-direction: column;
+        gap: 12px;
+    }
+
+    .settings-row > div {
+        width: 100%;
+    }
+
+    .category-dropdown, .timer-dropdown {
+        width: 100%;
+    }
+
+    /* Custom puzzle builder tiles on mobile */
+    .puzzle-tile {
+        width: clamp(30px, 8.5vw, 40px);
+        height: clamp(42px, 11vw, 52px);
+    }
+
+    .blanks-control-bar {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 8px;
+    }
+
+    .quick-blank-btns {
+        width: 100%;
+        display: flex;
+        justify-content: space-between;
+    }
+
+    .btn-chip {
+        flex: 1;
+        text-align: center;
+        padding: 5px 2px;
+        font-size: 10px;
+    }
+}
+
+/* Ultra-Compact Mobile Screens (<= 400px) */
+@media (max-width: 400px) {
+    .hangman-box {
+        width: 130px;
+        height: 165px;
+    }
+
+    .gallows {
+        transform: scale(0.82);
+        transform-origin: center top;
+    }
+
+    .scoreboard {
+        gap: 6px;
+    }
+
+    .score-card {
+        padding: 6px 8px;
+    }
+
+    .score-avatar {
+        font-size: 18px;
+    }
+
+    .score-name {
+        font-size: 11px;
+        max-width: 65px;
+    }
+
+    .score-pts {
+        font-size: 12px;
+    }
+
+    .lives-indicator {
+        font-size: 12px;
+    }
+
+    .lives-hearts {
+        font-size: 14px;
+        letter-spacing: 0;
+    }
+
+    .reactions-bar {
+        padding: 4px 10px;
+        gap: 4px;
+    }
+
+    .reaction-btn {
+        font-size: 17px;
+        padding: 2px;
+    }
+
+    .reactions-label {
+        display: none;
+    }
+
+    .chat-toggle-btn {
+        width: 42px;
+        height: 42px;
+        font-size: 18px;
+        bottom: 14px;
+        right: 14px;
+    }
+
+    .chat-panel {
+        width: calc(100vw - 20px);
+        right: 10px;
+        bottom: 64px;
+        max-height: 380px;
+    }
+}
+
+/* Mobile Landscape (Screen Height <= 520px and Landscape Orientation) */
+@media (max-height: 520px) and (orientation: landscape) {
+    body {
+        padding-top: 6px;
+        padding-bottom: 10px;
+        align-items: flex-start;
+    }
+
+    .top-nav {
+        margin-bottom: 8px;
+    }
+
+    .arena-stage {
+        flex-direction: row;
+        align-items: center;
+        gap: 16px;
+        padding: 8px 12px;
+    }
+
+    .hangman-box {
+        width: 110px;
+        height: 135px;
+    }
+
+    .gallows {
+        transform: scale(0.68);
+        transform-origin: center top;
+    }
+
+    .hint-container {
+        margin-bottom: 6px;
+    }
+
+    .word-slots {
+        margin-bottom: 6px;
+    }
+
+    .keyboard-container {
+        margin-bottom: 8px;
     }
 
     .key-btn {
-        width: 30px;
-        height: 38px;
-        font-size: 13px;
+        height: 32px;
     }
 
-    .letter-slot {
-        width: 26px;
-        height: 38px;
-        font-size: 20px;
+    .modal-box {
+        max-height: 94dvh;
+        padding: 12px;
     }
 }
 
