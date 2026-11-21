@@ -1,0 +1,319 @@
+﻿<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Project Nostalgia - Multiplayer Arena</title>
+    <link rel="stylesheet" href="room.css">
+    <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🕹️</text></svg>">
+</head>
+
+<body class="theme-paper">
+
+    <main class="room-container">
+
+        <!-- TOP BAR NAVIGATION -->
+        <div class="top-nav">
+            <button class="nav-btn" id="leaveRoomBtn" title="Leave Room">← Exit</button>
+            <div class="room-pill">
+                <span class="room-pill-label">ROOM:</span>
+                <span class="room-pill-code" id="headerRoomCode">-----</span>
+            </div>
+            <div class="top-nav-actions">
+                <button class="audio-btn" id="themeToggleBtn" title="Toggle Theme">🌓</button>
+                <button class="audio-btn" id="audioToggleBtn" title="Toggle Sound">🔊</button>
+            </div>
+        </div>
+
+        <!-- ==============================================
+             1. LOBBY VIEW (Visible before game starts)
+        =============================================== -->
+        <section class="view-panel" id="lobbyView">
+
+            <header class="lobby-header">
+                <p>PROJECT NOSTALGIA MULTIPLAYER</p>
+                <h1>GAME ROOM LOBBY</h1>
+            </header>
+
+            <!-- Room Code Card -->
+            <div class="room-code-card">
+                <span class="card-caption">SHARE THIS 5-LETTER CODE WITH YOUR OPPONENT</span>
+                <h2 class="code-display" id="lobbyRoomCode">-----</h2>
+                <div class="code-btn-group">
+                    <button class="btn-action" id="copyCodeBtn">📋 Copy Code</button>
+                    <button class="btn-action" id="copyLinkBtn">🔗 Copy Link</button>
+                    <button class="btn-action btn-qr" id="showQRModalBtn">📷 Show QR</button>
+                    <button class="btn-action btn-whatsapp" id="shareQRBtn">💬 Share via WhatsApp</button>
+                </div>
+                <div class="toast-feedback" id="copyToast" style="display: none;">✓ Copied to clipboard!</div>
+            </div>
+
+            <!-- Match Settings Card (Host can customize) -->
+            <div class="category-card">
+                <div class="settings-row">
+                    <div>
+                        <label for="modeSelect">GAME MODE:</label>
+                        <select id="modeSelect" class="category-dropdown">
+                            <option value="standard">📖 Standard Word Bank</option>
+                            <option value="custom">✍️ Custom Puzzle Creator</option>
+                        </select>
+                    </div>
+
+                    <div id="categorySelectGroup">
+                        <label for="categorySelect">WORD THEME:</label>
+                        <select id="categorySelect" class="category-dropdown">
+                            <option value="random">🎲 Random Mix (Surprise!)</option>
+                            <option value="nostalgia">📼 90s & 2000s Nostalgia</option>
+                            <option value="videogames">🕹️ Classic Video Games</option>
+                            <option value="cartoons">📺 Cartoons & Movies</option>
+                            <option value="tech">💾 Retro Tech & Computing</option>
+                            <option value="treats">🍭 Childhood Treats & Snacks</option>
+                            <option value="animals">🐾 Animals & Nature</option>
+                        </select>
+                    </div>
+
+                    <div>
+                        <label for="timerSelect">TURN TIMER:</label>
+                        <select id="timerSelect" class="category-dropdown">
+                            <option value="0">⏱️ Relaxed (No Timer)</option>
+                            <option value="30">⚡ 30s Blitz</option>
+                            <option value="45">⏱️ 45s Normal</option>
+                        </select>
+                    </div>
+                </div>
+
+                <!-- Room Password -->
+                <div class="password-row">
+                    <label for="roomPasswordInput">🔒 ROOM PASSWORD (OPTIONAL):</label>
+                    <input type="text" id="roomPasswordInput" class="password-input" placeholder="Leave blank for open room" maxlength="20" autocomplete="off">
+                </div>
+
+                <small id="categoryHint">Host can change match settings</small>
+            </div>
+
+            <!-- Players in Room -->
+            <div class="players-card">
+                <h3>PLAYERS IN ROOM (MAX 2)</h3>
+                <div id="playersList" class="players-list"></div>
+            </div>
+
+            <p id="lobbyStatus" class="lobby-status">Connecting to server...</p>
+
+            <!-- Inactivity Warning Banner -->
+            <div id="inactivityWarning" class="inactivity-warning" style="display:none;">
+                <span>⏳ No activity detected! Room disbands in <strong id="inactivityCountdown">30</strong>s</span>
+                <button onclick="document.dispatchEvent(new MouseEvent('click'))">I'm Here!</button>
+            </div>
+
+            <button id="startGameBtn" class="btn-primary-large" disabled>
+                WAITING FOR PLAYER 2...
+            </button>
+
+        </section>
+
+
+        <!-- ==============================================
+             2. GAME ARENA VIEW (Visible when playing/round over)
+        =============================================== -->
+        <section class="view-panel" id="gameView" style="display: none;">
+
+            <!-- Match Header / Scoreboard -->
+            <div class="game-top-bar">
+                <div class="category-badge" id="gameCategoryBadge">
+                    🕹️ Classic Video Games
+                </div>
+
+                <!-- Timer Indicator -->
+                <div class="timer-indicator" id="timerIndicator" style="display: none;">
+                    <span class="timer-icon">⏱️</span>
+                    <span id="timerCountdown">30s</span>
+                </div>
+
+                <!-- Lives Indicator -->
+                <div class="lives-indicator" id="livesIndicator">
+                    <span class="lives-label">LIVES:</span>
+                    <span class="lives-hearts" id="livesHearts">❤️❤️❤️❤️❤️❤️</span>
+                </div>
+            </div>
+
+            <!-- Scoreboard -->
+            <div class="scoreboard" id="scoreboard"></div>
+
+            <!-- Turn Banner -->
+            <div class="turn-banner" id="turnBanner">
+                <span id="turnText">Waiting for turn...</span>
+            </div>
+
+            <!-- Arena Stage: Gallows on Left, Word on Right -->
+            <div class="arena-stage" id="arenaStage">
+
+                <!-- Hangman Gallows Drawing -->
+                <div class="hangman-box">
+                    <div class="gallows" id="gallows">
+                        <div class="scaffold beam"></div>
+                        <div class="scaffold pole"></div>
+                        <div class="scaffold base"></div>
+                        <div class="scaffold rope"></div>
+
+                        <div class="part head">
+                            <div class="face-eye eye-left"></div>
+                            <div class="face-eye eye-right"></div>
+                            <div class="face-nose"></div>
+                            <div class="face-mouth"></div>
+                        </div>
+                        <div class="part body"></div>
+                        <div class="part arm left-arm"></div>
+                        <div class="part arm right-arm"></div>
+                        <div class="part leg left-leg"></div>
+                        <div class="part leg right-leg"></div>
+                    </div>
+                </div>
+
+                <!-- Word Stage -->
+                <div class="word-stage">
+                    <!-- Nostalgia Hint Box -->
+                    <div class="hint-container">
+                        <button class="hint-toggle-btn" id="hintToggleBtn">💡 Show Nostalgia Hint</button>
+                        <div class="hint-text" id="hintText" style="display: none;"></div>
+                    </div>
+
+                    <div class="word-slots" id="wordSlots"></div>
+                    <div class="game-message" id="gameMessage">
+                        Select a letter or type on your keyboard.
+                    </div>
+                </div>
+
+            </div>
+
+            <!-- Virtual Keyboard -->
+            <div class="keyboard-container" id="virtualKeyboard"></div>
+
+            <!-- Round Over Overlay Banner -->
+            <div class="round-over-card" id="roundOverCard" style="display: none;">
+                <h2 id="roundOverTitle">ROUND WON!</h2>
+                <p id="roundOverMessage">The word was <strong>POKEMON</strong></p>
+                <div class="round-over-actions">
+                    <button class="btn-primary" id="nextRoundBtn">Play Next Round ➔</button>
+                    <button class="btn-secondary" id="backToLobbyBtn">Return to Lobby</button>
+                </div>
+            </div>
+
+            <!-- IN-GAME CHAT & SYSTEM LOG -->
+            <div class="chat-section">
+                <div class="chat-header">
+                    <span>💬 MATCH CHAT & LOG</span>
+                </div>
+                <div class="chat-messages" id="chatMessages"></div>
+                <div class="chat-input-row">
+                    <input type="text" id="chatInput" placeholder="Send a message or reaction..." maxlength="100" autocomplete="off">
+                    <button id="sendChatBtn" class="btn-chat">Send</button>
+                </div>
+            </div>
+
+        </section>
+
+        <!-- FLOATING REACTIONS BAR -->
+        <div class="reactions-bar">
+            <span class="reactions-label">REACT:</span>
+            <div class="reactions-buttons">
+                <button class="reaction-btn" data-emoji="👏">👏</button>
+                <button class="reaction-btn" data-emoji="🔥">🔥</button>
+                <button class="reaction-btn" data-emoji="😱">😱</button>
+                <button class="reaction-btn" data-emoji="💡">💡</button>
+                <button class="reaction-btn" data-emoji="🎉">🎉</button>
+                <button class="reaction-btn" data-emoji="💀">💀</button>
+            </div>
+        </div>
+
+        <div class="floating-reactions-area" id="reactionsArea"></div>
+
+    </main>
+
+    <!-- Custom Puzzle Builder Modal -->
+    <div class="modal-overlay" id="customPuzzleModal" style="display: none;">
+        <div class="modal-box modal-box-large">
+            <div class="modal-header">
+                <h3>✍️ Craft Your Custom Puzzle</h3>
+                <button class="modal-close-btn" id="closePuzzleModalBtn">×</button>
+            </div>
+            <div class="modal-body">
+                <p style="font-size: 13px; color: var(--text-muted); margin-top: 0;">
+                    Type your secret word/phrase, provide a clue, and click letter tiles below to choose which letters remain as <strong>Blanks</strong> or are revealed as <strong>Starting Clues</strong>!
+                </p>
+
+                <label for="puzzleWordInput">1. SECRET WORD OR PHRASE:</label>
+                <input type="text" id="puzzleWordInput" placeholder="e.g. TAMAGOTCHI OR POKEMON GOLD" maxlength="22" style="text-transform: uppercase; font-size: 18px; letter-spacing: 2px;">
+
+                <label for="puzzleClueInput">2. CLUE / RIDDLE FOR OPPONENT:</label>
+                <input type="text" id="puzzleClueInput" placeholder="e.g. Virtual pocket egg pet from Japan (1996)" maxlength="70">
+
+                <div class="blanks-control-bar">
+                    <label>3. PLACE BLANKS OR CLUES (TAP TILES TO TOGGLE):</label>
+                    <div class="quick-blank-btns">
+                        <button type="button" class="btn-chip" id="btnAllBlanks">🔲 All Blanks</button>
+                        <button type="button" class="btn-chip" id="btnRevealOne">💡 Reveal 1 Clue</button>
+                        <button type="button" class="btn-chip" id="btnRevealTwo">💡💡 Reveal 2 Clues</button>
+                    </div>
+                </div>
+
+                <div class="puzzle-tiles-grid" id="puzzleTilesGrid">
+                    <span style="font-size: 13px; color: var(--text-muted); font-style: italic;">Type a word above to place your blanks...</span>
+                </div>
+
+                <div class="puzzle-preview-box">
+                    <span class="preview-title">OPPONENT WILL SEE:</span>
+                    <div class="preview-word" id="puzzlePreviewText">_ _ _ _ _ _ _ _</div>
+                    <div class="preview-stats" id="puzzlePreviewStats">Blanks to guess: 0 • Clues revealed: 0</div>
+                </div>
+            </div>
+
+            <div class="modal-actions">
+                <button class="btn-secondary" id="cancelPuzzleBtn">Cancel</button>
+                <button class="btn-primary" id="launchPuzzleBtn">Launch Puzzle to Opponent ➔</button>
+            </div>
+        </div>
+    </div>
+
+
+    <!-- QR Code Modal for Instant Join -->
+    <div class="modal-overlay" id="qrModal" style="display: none;">
+        <div class="modal-box text-center" style="max-width: 380px; width: 92%;">
+            <div class="modal-header">
+                <h3>📷 Instant Join QR Code</h3>
+                <button class="modal-close-btn" data-close="qrModal">×</button>
+            </div>
+            <div class="modal-body" style="display: flex; flex-direction: column; align-items: center; padding: 18px 20px;">
+                <p style="font-size: 13px; color: var(--text-muted); margin: 0 0 14px; text-align: center;">
+                    Scan with any phone camera or QR scanner to join this room instantly!
+                </p>
+                <div id="qrCodeWrapper" class="retro-qr-frame">
+                    <div id="qrCodeContainer"></div>
+                </div>
+                <div class="qr-info-card" style="margin-top: 14px; width: 100%; text-align: center;">
+                    <div style="font-size: 11px; color: var(--text-muted); text-transform: uppercase; letter-spacing: 1px;">Room Code</div>
+                    <div id="qrRoomCodeBadge" style="font-family: var(--font-pixel, monospace); font-size: 24px; font-weight: 800; color: var(--accent-neon, #ffd700); letter-spacing: 4px; margin: 2px 0;">-----</div>
+                    <div id="qrPasswordBadge" style="font-size: 12px; color: #4ade80; display: none;">🔒 Room Password Included in QR</div>
+                    <div id="qrUrlPreview" style="font-size: 10px; color: var(--text-muted); word-break: break-all; margin-top: 6px; padding: 4px 8px; background: rgba(0,0,0,0.06); border-radius: 4px;"></div>
+                </div>
+            </div>
+            <div class="modal-actions" style="justify-content: center; gap: 8px;">
+                <button class="btn-secondary" data-close="qrModal">Close</button>
+                <button class="btn-primary" id="modalCopyLinkBtn">🔗 Copy Join Link</button>
+            </div>
+        </div>
+    </div>
+    <!-- Scripts (Served locally for 100% reliable offline/online operation) -->
+    <script src="words.js"></script>
+    <script src="confetti.js"></script>
+    <script src="audio.js"></script>
+    <script src="socket.io.min.js"></script>
+    <script src="peerjs.min.js"></script>
+    <script src="network.js"></script>
+    <script src="qrcode.min.js"></script>
+    <script src="room.js"></script>
+
+</body>
+
+</html>
+

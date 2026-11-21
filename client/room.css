@@ -514,32 +514,153 @@ body {
 }
 
 .part.head {
-    left: 88px; top: 33px;
-    width: 26px; height: 26px;
-    border: 3px solid var(--border-color);
+    left: 87px; top: 33px;
+    width: 28px; height: 28px;
+    border: 3.5px solid var(--border-color);
     border-radius: 50%;
     background: var(--surface-color);
+    box-sizing: border-box;
+}
+
+/* Hangman Face Features: Eyes, Nose, Mouth */
+.face-eye {
+    position: absolute;
+    top: 6px;
+    width: 3px;
+    height: 3px;
+    background: currentColor;
+    border-radius: 50%;
+}
+.face-eye.eye-left {
+    left: 4px;
+}
+.face-eye.eye-right {
+    right: 4px;
+}
+
+.face-nose {
+    position: absolute;
+    top: 10px;
+    left: 50%;
+    transform: translateX(-50%);
+    width: 2px;
+    height: 3px;
+    background: currentColor;
+    border-radius: 1px;
+}
+
+.face-mouth {
+    position: absolute;
+    top: 15px;
+    left: 50%;
+    transform: translateX(-50%);
+    width: 10px;
+    height: 3px;
+    border-bottom: 2px solid currentColor;
+    border-radius: 0 0 4px 4px;
+    transition: all 0.2s ease;
+}
+
+/* Expression changes to 'X X' dead eyes and frown on final defeat (step-6) */
+.gallows.step-6 .face-eye {
+    background: transparent !important;
+    width: 5px;
+    height: 5px;
+    border-radius: 0;
+    top: 5px;
+}
+.gallows.step-6 .face-eye.eye-left { left: 3px; }
+.gallows.step-6 .face-eye.eye-right { right: 3px; }
+.gallows.step-6 .face-eye::before,
+.gallows.step-6 .face-eye::after {
+    content: "";
+    position: absolute;
+    top: 2px;
+    left: 0;
+    width: 5px;
+    height: 1.5px;
+    background: currentColor;
+}
+.gallows.step-6 .face-eye::before { transform: rotate(45deg); }
+.gallows.step-6 .face-eye::after { transform: rotate(-45deg); }
+.gallows.step-6 .face-mouth {
+    border-bottom: none;
+    border-top: 2px solid currentColor;
+    border-radius: 4px 4px 0 0;
+    top: 17px;
 }
 
 .part.body {
-    left: 100px; top: 59px;
-    width: 3px; height: 48px;
+    left: 100px; top: 60px;
+    width: 3.5px; height: 48px;
     background: var(--border-color);
 }
 
 .part.arm {
-    top: 68px; width: 3px; height: 35px;
+    top: 69px; width: 3.5px; height: 35px;
     background: var(--border-color);
 }
 .part.left-arm { left: 88px; transform: rotate(38deg); }
 .part.right-arm { left: 112px; transform: rotate(-38deg); }
 
 .part.leg {
-    top: 104px; width: 3px; height: 40px;
+    top: 106px; width: 3.5px; height: 40px;
     background: var(--border-color);
 }
 .part.left-leg { left: 91px; transform: rotate(28deg); }
 .part.right-leg { left: 109px; transform: rotate(-28deg); }
+
+/* ===================================================
+   HANGMAN COLOR CUSTOMIZATION:
+   LIGHT MODE ALONE: High-contrast, easy-to-see crimson hangman with dark wood scaffold
+   =================================================== */
+body:not(.theme-midnight) .gallows .scaffold {
+    background: #4a2c11; /* Rich dark walnut wood scaffold */
+}
+body:not(.theme-midnight) .gallows .scaffold.rope {
+    background: #b45309; /* Golden-brown hemp rope */
+}
+body:not(.theme-midnight) .gallows .part {
+    background: #b91c1c; /* Bold vibrant crimson stick figure - extremely visible on light paper */
+    color: #b91c1c;
+}
+body:not(.theme-midnight) .gallows .part.head {
+    border-color: #b91c1c;
+    background: #ffffff;
+    color: #b91c1c;
+    box-shadow: 0 2px 4px rgba(185, 28, 28, 0.2);
+}
+body:not(.theme-midnight) .gallows .face-eye,
+body:not(.theme-midnight) .gallows .face-nose {
+    background: #b91c1c;
+}
+body:not(.theme-midnight) .gallows .face-mouth {
+    border-color: #b91c1c;
+}
+
+/* DARK / MIDNIGHT THEME: Neon Cyan Hangman */
+body.theme-midnight .gallows .scaffold {
+    background: #3e4259;
+}
+body.theme-midnight .gallows .scaffold.rope {
+    background: #e2b357;
+}
+body.theme-midnight .gallows .part {
+    background: #00e5ff;
+    color: #00e5ff;
+}
+body.theme-midnight .gallows .part.head {
+    border-color: #00e5ff;
+    background: #1f2130;
+    color: #00e5ff;
+}
+body.theme-midnight .gallows .face-eye,
+body.theme-midnight .gallows .face-nose {
+    background: #00e5ff;
+}
+body.theme-midnight .gallows .face-mouth {
+    border-color: #00e5ff;
+}
 
 .gallows.step-1 .head { opacity: 1; }
 .gallows.step-2 .head, .gallows.step-2 .body { opacity: 1; }

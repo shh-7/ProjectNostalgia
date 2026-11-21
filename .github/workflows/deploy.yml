@@ -31,8 +31,8 @@ jobs:
       - name: Upload Pages Artifact
         uses: actions/upload-pages-artifact@v3
         with:
-          # Deploy the client directory directly as the website root
-          path: 'client'
+          # Deploy the repository directly as the website root
+          path: '.'
 
       - name: Deploy to GitHub Pages
         id: deployment

@@ -24,9 +24,10 @@ const metrics = {
     totalGuesses: 0
 };
 
-// Serve static client assets
+// Serve static client assets (both client directory and root)
 const clientPath = path.join(__dirname, "../client");
 app.use(express.static(clientPath));
+app.use(express.static(path.join(__dirname, "..")));
 
 // API Routes
 app.get("/health", (req, res) => {
