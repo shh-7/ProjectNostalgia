@@ -16,12 +16,41 @@ if (!roomCode) {
 
 // Local State
 let currentRoomState = null;
-let playerName = localStorage.getItem("nostalgia_player_name") || "Player " + Math.floor(100 + Math.random() * 900);
-let playerAvatar = localStorage.getItem("nostalgia_player_avatar") || "👾";
+let playerName = getCookie("nostalgia_player_name") || localStorage.getItem("nostalgia_player_name") || "Player " + Math.floor(100 + Math.random() * 900);
+let playerAvatar = getCookie("nostalgia_player_avatar") || localStorage.getItem("nostalgia_player_avatar") || "👾";
 let activeTheme = localStorage.getItem("nostalgia_theme") || "paper";
 let timerInterval = null;
+let lastActivityTime = Date.now();
+let inactivityTimer = null;
 
+// ===================================================
+// COOKIE HELPERS
+// ===================================================
+function setCookie(name, value, days) {
+    const expires = new Date(Date.now() + days * 864e5).toUTCString();
+    document.cookie = `${name}=${encodeURIComponent(value)};expires=${expires};path=/`;
+}
+
+function getCookie(name) {
+    return document.cookie.split("; ").reduce((acc, pair) => {
+        const [k, v] = pair.split("=");
+        return k === name ? decodeURIComponent(v || "") : acc;
+    }, "");
+}
+
+// Save player identity in both cookies and localStorage
+function savePlayerIdentity(name, avatar) {
+    playerName = name;
+    playerAvatar = avatar;
+    localStorage.setItem("nostalgia_player_name", name);
+    localStorage.setItem("nostalgia_player_avatar", avatar);
+    setCookie("nostalgia_player_name", name, 365);
+    setCookie("nostalgia_player_avatar", avatar, 365);
+}
+
+// ===================================================
 // DOM Elements - Navigation & Shared
+// ===================================================
 const headerRoomCodeEl = document.getElementById("headerRoomCode");
 const leaveRoomBtn = document.getElementById("leaveRoomBtn");
 const audioToggleBtn = document.getElementById("audioToggleBtn");
@@ -32,13 +61,19 @@ const lobbyView = document.getElementById("lobbyView");
 const lobbyRoomCodeEl = document.getElementById("lobbyRoomCode");
 const copyCodeBtn = document.getElementById("copyCodeBtn");
 const copyLinkBtn = document.getElementById("copyLinkBtn");
+const shareQRBtn = document.getElementById("shareQRBtn");
 const copyToast = document.getElementById("copyToast");
+const modeSelect = document.getElementById("modeSelect");
+const categorySelectGroup = document.getElementById("categorySelectGroup");
 const categorySelect = document.getElementById("categorySelect");
 const timerSelect = document.getElementById("timerSelect");
+const roomPasswordInput = document.getElementById("roomPasswordInput");
 const categoryHint = document.getElementById("categoryHint");
 const playersListEl = document.getElementById("playersList");
 const lobbyStatusEl = document.getElementById("lobbyStatus");
 const startGameBtn = document.getElementById("startGameBtn");
+const inactivityWarning = document.getElementById("inactivityWarning");
+const inactivityCountdownEl = document.getElementById("inactivityCountdown");
 
 // DOM Elements - Game Arena View
 const gameView = document.getElementById("gameView");
@@ -70,12 +105,22 @@ const chatMessagesEl = document.getElementById("chatMessages");
 const chatInput = document.getElementById("chatInput");
 const sendChatBtn = document.getElementById("sendChatBtn");
 
-// Custom Word Modal Elements
-const customWordModal = document.getElementById("customWordModal");
-const customWordInput = document.getElementById("customWordInput");
-const customHintInput = document.getElementById("customHintInput");
-const cancelCustomWordBtn = document.getElementById("cancelCustomWordBtn");
-const submitCustomWordBtn = document.getElementById("submitCustomWordBtn");
+// Custom Puzzle Builder Elements
+const customPuzzleModal = document.getElementById("customPuzzleModal");
+const closePuzzleModalBtn = document.getElementById("closePuzzleModalBtn");
+const puzzleWordInput = document.getElementById("puzzleWordInput");
+const puzzleClueInput = document.getElementById("puzzleClueInput");
+const btnAllBlanks = document.getElementById("btnAllBlanks");
+const btnRevealOne = document.getElementById("btnRevealOne");
+const btnRevealTwo = document.getElementById("btnRevealTwo");
+const puzzleTilesGrid = document.getElementById("puzzleTilesGrid");
+const puzzlePreviewText = document.getElementById("puzzlePreviewText");
+const puzzlePreviewStats = document.getElementById("puzzlePreviewStats");
+const cancelPuzzleBtn = document.getElementById("cancelPuzzleBtn");
+const launchPuzzleBtn = document.getElementById("launchPuzzleBtn");
+
+// Puzzle Builder State
+let puzzleTiles = []; // [{char, isClue, isSpace}]
 
 headerRoomCodeEl.textContent = roomCode;
 lobbyRoomCodeEl.textContent = roomCode;
@@ -140,7 +185,51 @@ audioToggleBtn.addEventListener("click", () => {
 });
 
 // ===================================================
-// COPY ACTIONS
+// ACTIVITY TRACKING & INACTIVITY DISBAND (120s)
+// ===================================================
+
+function markActivity() {
+    lastActivityTime = Date.now();
+    // Reset inactivity warning if visible
+    if (inactivityWarning) inactivityWarning.style.display = "none";
+}
+
+function startInactivityWatch() {
+    if (inactivityTimer) clearInterval(inactivityTimer);
+    const DISBAND_MS = 120000;
+    const WARN_MS = 90000;
+
+    inactivityTimer = setInterval(() => {
+        const idle = Date.now() - lastActivityTime;
+        if (idle >= DISBAND_MS) {
+            clearInterval(inactivityTimer);
+            if (inactivityWarning) inactivityWarning.style.display = "none";
+            alert("⏳ Room disbanded due to 120 seconds of inactivity.");
+            window.location.href = "index.html";
+        } else if (idle >= WARN_MS) {
+            const secsLeft = Math.ceil((DISBAND_MS - idle) / 1000);
+            if (inactivityWarning) {
+                inactivityWarning.style.display = "flex";
+                if (inactivityCountdownEl) inactivityCountdownEl.textContent = secsLeft;
+            }
+        }
+    }, 1000);
+}
+
+// Listen for any user action to reset activity
+["mousemove", "keydown", "click", "touchstart"].forEach(evt => {
+    document.addEventListener(evt, markActivity, { passive: true });
+});
+
+// Also treat network events as activity
+net.on("roomUpdated", () => markActivity());
+net.on("guessResult", () => markActivity());
+net.on("chatMessage", () => markActivity());
+
+startInactivityWatch();
+
+// ===================================================
+// COPY & SHARE ACTIONS
 // ===================================================
 
 function showToast(message) {
@@ -162,13 +251,26 @@ copyCodeBtn.addEventListener("click", () => {
 
 copyLinkBtn.addEventListener("click", () => {
     if (window.soundFX) window.soundFX.playClick();
-    const inviteUrl = `${window.location.origin}${window.location.pathname}?code=${roomCode}`;
+    const pwd = roomPasswordInput ? roomPasswordInput.value.trim() : "";
+    const inviteUrl = `${window.location.origin}${window.location.pathname}?code=${roomCode}${pwd ? "&pwd=" + encodeURIComponent(pwd) : ""}`;
     navigator.clipboard.writeText(inviteUrl).then(() => {
-        showToast("✓ Invite link copied to clipboard!");
+        showToast("✓ Invite link copied! Share it with your friend.");
     }).catch(() => {
         showToast(`Link: ${inviteUrl}`);
     });
 });
+
+// WhatsApp quick share
+if (shareQRBtn) {
+    shareQRBtn.addEventListener("click", () => {
+        if (window.soundFX) window.soundFX.playClick();
+        const pwd = roomPasswordInput ? roomPasswordInput.value.trim() : "";
+        const inviteUrl = `${window.location.origin}${window.location.pathname}?code=${roomCode}${pwd ? "&pwd=" + encodeURIComponent(pwd) : ""}`;
+        const text = `🕹️ Join my Nostalgia Hangman room!\nRoom Code: *${roomCode}*\nLink: ${inviteUrl}`;
+        const waUrl = `https://wa.me/?text=${encodeURIComponent(text)}`;
+        window.open(waUrl, "_blank");
+    });
+}
 
 leaveRoomBtn.addEventListener("click", () => {
     if (window.soundFX) window.soundFX.playClick();
@@ -182,6 +284,7 @@ leaveRoomBtn.addEventListener("click", () => {
 // ===================================================
 
 const isHostParam = urlParams.get("host") === "true";
+const urlPwd = urlParams.get("pwd") || "";
 let hostSettings = {};
 try {
     const raw = sessionStorage.getItem("nostalgia_host_settings");
@@ -197,7 +300,8 @@ if (isHostParam) {
             avatar: playerAvatar,
             category: hostSettings.category || "random",
             timerSeconds: hostSettings.timerSeconds || 0,
-            mode: hostSettings.mode || "standard"
+            mode: hostSettings.mode || "standard",
+            password: hostSettings.password || ""
         });
     }, 150);
 } else {
@@ -206,7 +310,8 @@ if (isHostParam) {
         net.emit("joinRoom", {
             roomCode: roomCode,
             playerName: playerName,
-            avatar: playerAvatar
+            avatar: playerAvatar,
+            password: urlPwd
         });
     }, 150);
 }
@@ -285,6 +390,11 @@ net.on("guessResult", (data) => {
     }
 });
 
+net.on("roomDisbanded", (msg) => {
+    alert(msg || "⏳ Room disbanded due to inactivity.");
+    window.location.href = "index.html";
+});
+
 // ===================================================
 // RENDER FUNCTIONS
 // ===================================================
@@ -310,14 +420,28 @@ function renderRoom(state) {
 
 // 1. Render Lobby Screen
 function renderLobby(state, isHost) {
+    if (modeSelect) {
+        modeSelect.value = state.mode || "standard";
+        modeSelect.disabled = !isHost;
+        // Show/hide category group
+        if (categorySelectGroup) {
+            categorySelectGroup.style.display = (state.mode === "custom") ? "none" : "block";
+        }
+    }
+
     categorySelect.value = state.category || "random";
     categorySelect.disabled = !isHost;
 
     timerSelect.value = (state.timerSeconds || 0).toString();
     timerSelect.disabled = !isHost;
 
+    if (roomPasswordInput) {
+        roomPasswordInput.disabled = !isHost;
+        if (state.password && isHost) roomPasswordInput.placeholder = "Password set ✓";
+    }
+
     categoryHint.textContent = isHost
-        ? "Host: customize category and timer settings"
+        ? "Host: customize game mode, category and timer"
         : "Waiting for host to configure match settings";
 
     // Players list
@@ -344,15 +468,17 @@ function renderLobby(state, isHost) {
 
     if (state.players.length >= 2) {
         lobbyStatusEl.textContent = isHost
-            ? "Ready! Both players connected."
+            ? "✅ Ready! Both players connected."
             : "Both players connected! Waiting for host to start...";
         startGameBtn.disabled = !isHost;
-        startGameBtn.textContent = isHost ? "START MATCH ➔" : "WAITING FOR HOST TO START...";
+        startGameBtn.textContent = isHost
+            ? (state.mode === "custom" ? "✍️ CRAFT YOUR PUZZLE ➔" : "START MATCH ➔")
+            : "WAITING FOR HOST TO START...";
     } else {
         lobbyStatusEl.textContent = "Waiting for Player 2 to join with code...";
         if (isHost) {
             startGameBtn.disabled = false;
-            startGameBtn.textContent = "START PRACTICE (SOLO)";
+            startGameBtn.textContent = state.mode === "custom" ? "✍️ CRAFT SOLO PUZZLE ➔" : "START PRACTICE (SOLO)";
         } else {
             startGameBtn.disabled = true;
             startGameBtn.textContent = "WAITING FOR PLAYERS...";
@@ -362,10 +488,24 @@ function renderLobby(state, isHost) {
 
 // Settings changes (Host only)
 function pushSettings() {
+    const pwd = roomPasswordInput ? roomPasswordInput.value.trim() : "";
     net.emit("updateSettings", {
         roomCode: roomCode,
         category: categorySelect.value,
-        timerSeconds: timerSelect.value
+        timerSeconds: timerSelect.value,
+        mode: modeSelect ? modeSelect.value : "standard",
+        password: pwd
+    });
+}
+
+if (modeSelect) {
+    modeSelect.addEventListener("change", () => {
+        if (window.soundFX) window.soundFX.playClick();
+        // Show/hide category group
+        if (categorySelectGroup) {
+            categorySelectGroup.style.display = modeSelect.value === "custom" ? "none" : "block";
+        }
+        pushSettings();
     });
 }
 
@@ -379,43 +519,224 @@ timerSelect.addEventListener("change", () => {
     pushSettings();
 });
 
-// Start Game Handler
+if (roomPasswordInput) {
+    roomPasswordInput.addEventListener("change", () => {
+        pushSettings();
+    });
+}
+
+// ===================================================
+// START GAME HANDLER
+// ===================================================
+
+function isCreatorForThisRound(state) {
+    if (!state || state.players.length < 2) return true; // solo: always creator
+    const roundNum = state.roundNumber || 0;
+    const myId = getMyId();
+    // Even rounds: players[0] creates, odd rounds: players[1] creates
+    const creatorIndex = roundNum % 2;
+    const creator = state.players[creatorIndex];
+    if (!creator) return false;
+    return creator.id === myId || creator.name === playerName;
+}
+
 startGameBtn.addEventListener("click", () => {
     if (window.soundFX) window.soundFX.playClick();
 
     if (currentRoomState && currentRoomState.mode === "custom") {
-        customWordInput.value = "";
-        customHintInput.value = "";
-        customWordModal.style.display = "flex";
-        setTimeout(() => customWordInput.focus(), 50);
+        openPuzzleBuilder("start");
     } else {
         net.emit("startGame", { roomCode: roomCode });
     }
 });
 
-// Custom Word Modal Handlers
-cancelCustomWordBtn.addEventListener("click", () => {
-    customWordModal.style.display = "none";
+// ===================================================
+// CUSTOM PUZZLE BUILDER LOGIC
+// ===================================================
+
+let _pendingLaunchEvent = "startGame"; // 'startGame' or 'nextRound'
+
+function openPuzzleBuilder(launchEvent) {
+    _pendingLaunchEvent = launchEvent || "startGame";
+    puzzleWordInput.value = "";
+    puzzleClueInput.value = "";
+    puzzleTiles = [];
+    puzzleTilesGrid.innerHTML = `<span style="font-size:13px;color:var(--text-muted);font-style:italic;">Type a secret word above to start placing blanks...</span>`;
+    puzzlePreviewText.textContent = "_ _ _ _ _ _";
+    puzzlePreviewStats.textContent = "Blanks to guess: 0 • Clues revealed: 0";
+    customPuzzleModal.style.display = "flex";
+    setTimeout(() => puzzleWordInput.focus(), 50);
+}
+
+function buildTilesFromWord(raw) {
+    const word = raw.toUpperCase().replace(/[^A-Z ]/g, "");
+    // Preserve existing toggle states if word hasn't changed drastically
+    const newTiles = word.split("").map((char, i) => {
+        if (char === " ") return { char, isClue: false, isSpace: true };
+        // Try to preserve old state
+        const old = puzzleTiles[i];
+        return { char, isClue: old && old.char === char ? old.isClue : false, isSpace: false };
+    });
+    puzzleTiles = newTiles;
+}
+
+function renderTilesGrid() {
+    puzzleTilesGrid.innerHTML = "";
+    if (puzzleTiles.length === 0) {
+        puzzleTilesGrid.innerHTML = `<span style="font-size:13px;color:var(--text-muted);font-style:italic;">Type a secret word above to start placing blanks...</span>`;
+        return;
+    }
+
+    puzzleTiles.forEach((tile, i) => {
+        if (tile.isSpace) {
+            const sp = document.createElement("div");
+            sp.className = "puzzle-tile tile-space";
+            sp.title = "Word space";
+            puzzleTilesGrid.appendChild(sp);
+            return;
+        }
+
+        const el = document.createElement("div");
+        el.className = `puzzle-tile ${tile.isClue ? "is-clue" : "is-blank"}`;
+        el.title = tile.isClue ? "Click to make this a Blank" : "Click to reveal as Starting Clue";
+        el.innerHTML = `
+            <span class="tile-letter">${tile.char}</span>
+            <span class="tile-badge">${tile.isClue ? "CLUE" : "?"}</span>
+        `;
+        el.addEventListener("click", () => {
+            puzzleTiles[i].isClue = !puzzleTiles[i].isClue;
+            if (window.soundFX) window.soundFX.playClick();
+            renderTilesGrid();
+            updatePuzzlePreview();
+        });
+        puzzleTilesGrid.appendChild(el);
+    });
+
+    updatePuzzlePreview();
+}
+
+function updatePuzzlePreview() {
+    if (puzzleTiles.length === 0) {
+        puzzlePreviewText.textContent = "_ _ _ _ _ _";
+        puzzlePreviewStats.textContent = "Blanks to guess: 0 • Clues revealed: 0";
+        return;
+    }
+
+    let preview = "";
+    let blanks = 0, clues = 0;
+    puzzleTiles.forEach(tile => {
+        if (tile.isSpace) {
+            preview += "   ";
+        } else if (tile.isClue) {
+            preview += tile.char + " ";
+            clues++;
+        } else {
+            preview += "_ ";
+            blanks++;
+        }
+    });
+
+    puzzlePreviewText.textContent = preview.trim();
+    puzzlePreviewStats.textContent = `Blanks to guess: ${blanks} • Clues revealed: ${clues}`;
+
+    launchPuzzleBtn.disabled = blanks === 0;
+    launchPuzzleBtn.style.opacity = blanks === 0 ? "0.5" : "1";
+}
+
+// Word input live update
+puzzleWordInput.addEventListener("input", () => {
+    const raw = puzzleWordInput.value.toUpperCase().replace(/[^A-Z ]/g, "");
+    puzzleWordInput.value = raw;
+    buildTilesFromWord(raw);
+    renderTilesGrid();
 });
 
-submitCustomWordBtn.addEventListener("click", () => {
-    const word = customWordInput.value.trim().toUpperCase().replace(/[^A-Z]/g, "");
-    const hint = customHintInput.value.trim();
+// Quick blank/clue buttons
+btnAllBlanks.addEventListener("click", () => {
+    if (window.soundFX) window.soundFX.playClick();
+    puzzleTiles.forEach(t => { if (!t.isSpace) t.isClue = false; });
+    renderTilesGrid();
+});
 
+btnRevealOne.addEventListener("click", () => {
+    if (window.soundFX) window.soundFX.playClick();
+    const eligible = puzzleTiles.filter(t => !t.isSpace && !t.isClue);
+    if (eligible.length > 0) {
+        const pick = eligible[Math.floor(Math.random() * eligible.length)];
+        // Reveal ALL occurrences of this letter (for fairness)
+        const letter = pick.char;
+        puzzleTiles.forEach(t => { if (!t.isSpace && t.char === letter) t.isClue = true; });
+        renderTilesGrid();
+    }
+});
+
+btnRevealTwo.addEventListener("click", () => {
+    if (window.soundFX) window.soundFX.playClick();
+    const usedLetters = new Set();
+    let revealCount = 0;
+    // Shuffle eligible letters
+    const letters = [...new Set(puzzleTiles.filter(t => !t.isSpace && !t.isClue).map(t => t.char))];
+    letters.sort(() => Math.random() - 0.5);
+    letters.slice(0, 2).forEach(letter => {
+        puzzleTiles.forEach(t => { if (!t.isSpace && t.char === letter) t.isClue = true; });
+    });
+    renderTilesGrid();
+});
+
+// Close modal
+closePuzzleModalBtn.addEventListener("click", () => {
+    customPuzzleModal.style.display = "none";
+});
+
+cancelPuzzleBtn.addEventListener("click", () => {
+    customPuzzleModal.style.display = "none";
+});
+
+// Close on backdrop click
+customPuzzleModal.addEventListener("click", (e) => {
+    if (e.target === customPuzzleModal) customPuzzleModal.style.display = "none";
+});
+
+// Launch puzzle
+launchPuzzleBtn.addEventListener("click", () => {
+    const word = puzzleTiles.filter(t => !t.isSpace).map(t => t.char).join("");
     if (word.length < 3) {
         alert("Please enter a word with at least 3 letters.");
         return;
     }
 
-    customWordModal.style.display = "none";
-    net.emit("startGame", {
-        roomCode: roomCode,
-        customWord: word,
-        customHint: hint
+    const blanksCount = puzzleTiles.filter(t => !t.isSpace && !t.isClue).length;
+    if (blanksCount === 0) {
+        alert("You must have at least 1 blank tile for the opponent to guess!");
+        return;
+    }
+
+    const hint = puzzleClueInput.value.trim() || "A custom secret word!";
+    const clueLetters = [...new Set(puzzleTiles.filter(t => !t.isSpace && t.isClue).map(t => t.char))];
+    const fullWord = puzzleTiles.map(t => t.isSpace ? " " : t.char).join("");
+    const maskedWord = puzzleTiles.map(t => {
+        if (t.isSpace) return " ";
+        if (t.isClue) return t.char;
+        return null;
     });
+
+    customPuzzleModal.style.display = "none";
+    if (window.soundFX) window.soundFX.playClick();
+
+    const customPuzzle = {
+        word: fullWord,
+        hint,
+        maskedWord,
+        clueLetters,
+        creatorName: playerName
+    };
+
+    net.emit(_pendingLaunchEvent, { roomCode, customPuzzle });
 });
 
-// 2. Render Game Arena
+// ===================================================
+// 2. RENDER GAME ARENA
+// ===================================================
 function renderGame(state, me) {
     const game = state.game;
     if (!game) return;
@@ -496,6 +817,14 @@ function renderGame(state, me) {
             roundOverTitle.textContent = "💀 GAME OVER!";
             roundOverTitle.style.color = "#c62828";
             roundOverMessage.innerHTML = `Ran out of lives! The secret word was: <strong>${game.revealedWord}</strong>`;
+        }
+
+        // Show puzzle creator badge
+        if (game.puzzleCreatorName) {
+            const badge = document.createElement("p");
+            badge.style.cssText = "font-size:12px;color:var(--text-muted);margin-top:6px;";
+            badge.textContent = `✍️ Puzzle crafted by ${game.puzzleCreatorName}`;
+            roundOverMessage.appendChild(badge);
         }
     }
 
@@ -625,12 +954,20 @@ window.addEventListener("keydown", (e) => {
     if (/^[A-Z]$/.test(key)) {
         handleGuess(key);
     }
+    if (e.key === "Escape") {
+        customPuzzleModal.style.display = "none";
+    }
 });
 
 // Next Round Handler
 nextRoundBtn.addEventListener("click", () => {
     if (window.soundFX) window.soundFX.playClick();
-    net.emit("nextRound", { roomCode: roomCode });
+    if (currentRoomState && currentRoomState.mode === "custom") {
+        // In custom mode, open puzzle builder for the next creator
+        openPuzzleBuilder("nextRound");
+    } else {
+        net.emit("nextRound", { roomCode: roomCode });
+    }
 });
 
 // Return to Lobby Handler

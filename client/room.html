@@ -42,7 +42,8 @@
                 <h2 class="code-display" id="lobbyRoomCode">-----</h2>
                 <div class="code-btn-group">
                     <button class="btn-action" id="copyCodeBtn">📋 Copy Code</button>
-                    <button class="btn-action" id="copyLinkBtn">🔗 Copy Invite Link</button>
+                    <button class="btn-action" id="copyLinkBtn">🔗 Copy Link</button>
+                    <button class="btn-action btn-whatsapp" id="shareQRBtn">💬 Share via WhatsApp</button>
                 </div>
                 <div class="toast-feedback" id="copyToast" style="display: none;">✓ Copied to clipboard!</div>
             </div>
@@ -51,6 +52,14 @@
             <div class="category-card">
                 <div class="settings-row">
                     <div>
+                        <label for="modeSelect">GAME MODE:</label>
+                        <select id="modeSelect" class="category-dropdown">
+                            <option value="standard">📖 Standard Word Bank</option>
+                            <option value="custom">✍️ Custom Puzzle Creator</option>
+                        </select>
+                    </div>
+
+                    <div id="categorySelectGroup">
                         <label for="categorySelect">WORD THEME:</label>
                         <select id="categorySelect" class="category-dropdown">
                             <option value="random">🎲 Random Mix (Surprise!)</option>
@@ -72,6 +81,13 @@
                         </select>
                     </div>
                 </div>
+
+                <!-- Room Password -->
+                <div class="password-row">
+                    <label for="roomPasswordInput">🔒 ROOM PASSWORD (OPTIONAL):</label>
+                    <input type="text" id="roomPasswordInput" class="password-input" placeholder="Leave blank for open room" maxlength="20" autocomplete="off">
+                </div>
+
                 <small id="categoryHint">Host can change match settings</small>
             </div>
 
@@ -82,6 +98,12 @@
             </div>
 
             <p id="lobbyStatus" class="lobby-status">Connecting to server...</p>
+
+            <!-- Inactivity Warning Banner -->
+            <div id="inactivityWarning" class="inactivity-warning" style="display:none;">
+                <span>⏳ No activity detected! Room disbands in <strong id="inactivityCountdown">30</strong>s</span>
+                <button onclick="document.dispatchEvent(new MouseEvent('click'))">I'm Here!</button>
+            </div>
 
             <button id="startGameBtn" class="btn-primary-large" disabled>
                 WAITING FOR PLAYER 2...
@@ -202,16 +224,47 @@
 
     </main>
 
-    <!-- Custom Word Modal (For Custom Duel Mode) -->
-    <div class="modal-overlay" id="customWordModal" style="display: none;">
-        <div class="modal-box">
-            <h3>Enter Secret Word for Opponent</h3>
-            <p>Type a word and an optional nostalgic clue:</p>
-            <input type="text" id="customWordInput" placeholder="SECRET WORD" maxlength="15" style="text-transform: uppercase;">
-            <input type="text" id="customHintInput" placeholder="Optional Hint (e.g. 90s snack)" maxlength="40">
+    <!-- Custom Puzzle Builder Modal -->
+    <div class="modal-overlay" id="customPuzzleModal" style="display: none;">
+        <div class="modal-box modal-box-large">
+            <div class="modal-header">
+                <h3>✍️ Craft Your Custom Puzzle</h3>
+                <button class="modal-close-btn" id="closePuzzleModalBtn">×</button>
+            </div>
+            <div class="modal-body">
+                <p style="font-size: 13px; color: var(--text-muted); margin-top: 0;">
+                    Type your secret word/phrase, provide a clue, and click letter tiles below to choose which letters remain as <strong>Blanks</strong> or are revealed as <strong>Starting Clues</strong>!
+                </p>
+
+                <label for="puzzleWordInput">1. SECRET WORD OR PHRASE:</label>
+                <input type="text" id="puzzleWordInput" placeholder="e.g. TAMAGOTCHI OR POKEMON GOLD" maxlength="22" style="text-transform: uppercase; font-size: 18px; letter-spacing: 2px;">
+
+                <label for="puzzleClueInput">2. CLUE / RIDDLE FOR OPPONENT:</label>
+                <input type="text" id="puzzleClueInput" placeholder="e.g. Virtual pocket egg pet from Japan (1996)" maxlength="70">
+
+                <div class="blanks-control-bar">
+                    <label>3. PLACE BLANKS OR CLUES (TAP TILES TO TOGGLE):</label>
+                    <div class="quick-blank-btns">
+                        <button type="button" class="btn-chip" id="btnAllBlanks">🔲 All Blanks</button>
+                        <button type="button" class="btn-chip" id="btnRevealOne">💡 Reveal 1 Clue</button>
+                        <button type="button" class="btn-chip" id="btnRevealTwo">💡💡 Reveal 2 Clues</button>
+                    </div>
+                </div>
+
+                <div class="puzzle-tiles-grid" id="puzzleTilesGrid">
+                    <span style="font-size: 13px; color: var(--text-muted); font-style: italic;">Type a word above to place your blanks...</span>
+                </div>
+
+                <div class="puzzle-preview-box">
+                    <span class="preview-title">OPPONENT WILL SEE:</span>
+                    <div class="preview-word" id="puzzlePreviewText">_ _ _ _ _ _ _ _</div>
+                    <div class="preview-stats" id="puzzlePreviewStats">Blanks to guess: 0 • Clues revealed: 0</div>
+                </div>
+            </div>
+
             <div class="modal-actions">
-                <button class="btn-secondary" id="cancelCustomWordBtn">Cancel</button>
-                <button class="btn-primary" id="submitCustomWordBtn">Start Duel ➔</button>
+                <button class="btn-secondary" id="cancelPuzzleBtn">Cancel</button>
+                <button class="btn-primary" id="launchPuzzleBtn">Launch Puzzle to Opponent ➔</button>
             </div>
         </div>
     </div>

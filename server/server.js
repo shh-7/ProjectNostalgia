@@ -112,6 +112,7 @@ function getSanitizedRoomState(room) {
             maxLives: room.game.maxLives,
             currentTurnId: room.game.turnPlayerId,
             currentTurnName: room.game.turnPlayerName,
+            puzzleCreatorName: room.game.puzzleCreatorName,
             turnExpiresAt: room.game.turnExpiresAt,
             timerSeconds: room.timerSeconds,
             winnerName: room.game.winnerName,
@@ -125,6 +126,7 @@ function getSanitizedRoomState(room) {
         mode: room.mode || "standard",
         timerSeconds: room.timerSeconds || 0,
         gameState: room.gameState, // 'lobby' | 'playing' | 'roundOver'
+        roundNumber: room.roundNumber || 0,
         hostId: room.hostId,
         players: room.players.map(p => ({
             id: p.id,
@@ -194,34 +196,65 @@ function handleTurnTimeout(roomCode) {
     io.to(roomCode).emit("roomUpdated", getSanitizedRoomState(room));
 }
 
-// Start a new game round
-function initNewRound(room, customWord = null, customHint = null) {
-    let word, hint, catKey, catName;
+// Inactivity watchdog: disband room after 120s of no activity
+function startRoomInactivityWatch(code) {
+    const room = rooms[code];
+    if (!room) return;
+    if (room.inactivityTimer) clearInterval(room.inactivityTimer);
 
-    if (customWord) {
-        word = customWord.toUpperCase().trim();
-        hint = customHint || "Custom word chosen by opponent!";
+    room.lastActivityAt = Date.now();
+    room.inactivityTimer = setInterval(() => {
+        const r = rooms[code];
+        if (!r) { clearInterval(room.inactivityTimer); return; }
+        const idleMs = Date.now() - (r.lastActivityAt || Date.now());
+        if (idleMs >= 120000) {
+            clearInterval(r.inactivityTimer);
+            if (r.timerInterval) clearInterval(r.timerInterval);
+            io.to(code).emit("roomDisbanded", "⏳ Room disbanded due to 120 seconds of inactivity.");
+            console.log(`[Room Disbanded] ${code} due to inactivity.`);
+            delete rooms[code];
+        }
+    }, 5000);
+}
+
+// Update room activity timestamp
+function touchRoom(code) {
+    const room = rooms[code];
+    if (room) room.lastActivityAt = Date.now();
+}
+
+// Start a new game round
+function initNewRound(room, customPuzzle = null) {
+    let word, hint, catKey, catName, maskedWord, clueLetters;
+
+    if (customPuzzle && customPuzzle.word) {
+        word = customPuzzle.word.toUpperCase().trim();
+        hint = customPuzzle.hint || "Custom secret puzzle!";
         catKey = "custom";
-        catName = "⚔️ Custom Word Duel";
+        catName = `✍️ ${customPuzzle.creatorName || "Player"}'s Custom Puzzle`;
+        maskedWord = customPuzzle.maskedWord || word.split("").map(c => c === " " ? " " : null);
+        clueLetters = customPuzzle.clueLetters || [];
     } else {
         const selected = getRandomWord(room.category);
         word = selected.word;
         hint = selected.hint;
         catKey = selected.categoryKey;
         catName = selected.categoryName;
+        clueLetters = getStartingClues(word, "normal");
+        maskedWord = word.split("").map(char => {
+            if (char === " ") return " ";
+            if (clueLetters.includes(char)) return char;
+            return null;
+        });
     }
 
-    const clueLetters = getStartingClues(word, "normal");
-
-    const maskedWord = word.split("").map(char => {
-        if (char === " ") return " ";
-        if (clueLetters.includes(char)) return char;
-        return null;
-    });
-
-    const turnIndex = room.players.length > 1
-        ? (room.roundNumber ? room.roundNumber % room.players.length : 0)
-        : 0;
+    let turnIndex = 0;
+    if (customPuzzle && room.players.length > 1) {
+        const creatorIndex = room.players.findIndex(p => p.name === customPuzzle.creatorName);
+        turnIndex = creatorIndex === 0 ? 1 : 0;
+    } else if (room.players.length > 1) {
+        turnIndex = room.roundNumber ? room.roundNumber % room.players.length : 0;
+    }
 
     const turnPlayer = room.players[turnIndex] || room.players[0];
 
@@ -242,6 +275,7 @@ function initNewRound(room, customWord = null, customHint = null) {
         currentTurnIndex: turnIndex,
         turnPlayerId: turnPlayer.id,
         turnPlayerName: turnPlayer.name,
+        puzzleCreatorName: customPuzzle ? customPuzzle.creatorName : null,
         turnExpiresAt: null,
         winnerName: null,
         isVictory: false
@@ -257,7 +291,7 @@ function initNewRound(room, customWord = null, customHint = null) {
 // Socket.IO event handling
 io.on("connection", (socket) => {
     // CREATE ROOM
-    socket.on("createRoom", ({ roomCode, playerName, avatar, category, timerSeconds, mode }) => {
+    socket.on("createRoom", ({ roomCode, playerName, avatar, category, timerSeconds, mode, password }) => {
         const safeName = (playerName || "Player 1").trim().substring(0, 20);
         const safeAvatar = avatar || "👾";
         const code = (roomCode || generateRoomCode()).trim().toUpperCase();
@@ -268,6 +302,7 @@ io.on("connection", (socket) => {
             category: category || "random",
             mode: mode || "standard",
             timerSeconds: parseInt(timerSeconds, 10) || 0,
+            password: (password || "").trim().substring(0, 20),
             gameState: "lobby",
             roundNumber: 0,
             chatMessages: [],
@@ -281,8 +316,13 @@ io.on("connection", (socket) => {
                 }
             ],
             game: null,
-            timerInterval: null
+            timerInterval: null,
+            lastActivityAt: Date.now(),
+            inactivityTimer: null
         };
+
+        // Start inactivity watchdog
+        startRoomInactivityWatch(code);
 
         metrics.totalRoomsCreated += 1;
         socket.join(code);
@@ -299,7 +339,7 @@ io.on("connection", (socket) => {
     });
 
     // JOIN ROOM
-    socket.on("joinRoom", ({ roomCode, playerName, avatar }) => {
+    socket.on("joinRoom", ({ roomCode, playerName, avatar, password }) => {
         const code = (roomCode || "").trim().toUpperCase();
         const safeName = (playerName || "Guest").trim().substring(0, 20);
         const safeAvatar = avatar || "🎮";
@@ -307,6 +347,12 @@ io.on("connection", (socket) => {
 
         if (!room) {
             socket.emit("joinError", "Room does not exist. Check code and try again.");
+            return;
+        }
+
+        // Password check
+        if (room.password && room.password !== (password || "").trim()) {
+            socket.emit("joinError", "🔒 Incorrect room password. Ask your friend for the password.");
             return;
         }
 
@@ -334,6 +380,9 @@ io.on("connection", (socket) => {
             roundsWon: 0
         });
 
+        // Mark activity when someone joins
+        room.lastActivityAt = Date.now();
+
         socket.join(code);
         socket.currentRoom = code;
 
@@ -354,28 +403,38 @@ io.on("connection", (socket) => {
     });
 
     // UPDATE ROOM SETTINGS (Host only)
-    socket.on("updateSettings", ({ roomCode, category, timerSeconds, mode }) => {
+    socket.on("updateSettings", ({ roomCode, category, timerSeconds, mode, password }) => {
         const room = rooms[roomCode];
         if (!room || room.hostId !== socket.id) return;
 
         if (category) room.category = category;
         if (mode) room.mode = mode;
         if (timerSeconds !== undefined) room.timerSeconds = parseInt(timerSeconds, 10);
+        if (password !== undefined) room.password = (password || "").trim().substring(0, 20);
+        touchRoom(roomCode);
 
         io.to(roomCode).emit("roomUpdated", getSanitizedRoomState(room));
     });
 
-    // START GAME (Host only)
-    socket.on("startGame", ({ roomCode, customWord, customHint }) => {
+    // START GAME
+    socket.on("startGame", ({ roomCode, customWord, customHint, customPuzzle }) => {
         const room = rooms[roomCode];
         if (!room) return;
 
-        if (room.hostId !== socket.id) {
-            socket.emit("gameError", "Only the host can start the game.");
-            return;
+        touchRoom(roomCode);
+
+        let puzzle = customPuzzle;
+        if (!puzzle && customWord) {
+            puzzle = {
+                word: customWord,
+                hint: customHint,
+                maskedWord: customWord.split("").map(c => c === " " ? " " : null),
+                clueLetters: [],
+                creatorName: "Host"
+            };
         }
 
-        initNewRound(room, customWord, customHint);
+        initNewRound(room, puzzle);
         console.log(`[Game Started] Room ${roomCode}: Word "${room.game.word}" (${room.game.categoryName})`);
 
         io.to(roomCode).emit("gameStarted", getSanitizedRoomState(room));
@@ -386,6 +445,7 @@ io.on("connection", (socket) => {
     socket.on("guessLetter", ({ roomCode, letter }) => {
         const room = rooms[roomCode];
         if (!room || room.gameState !== "playing" || !room.game) return;
+        touchRoom(roomCode);
 
         const char = (letter || "").toUpperCase();
         if (!/^[A-Z]$/.test(char)) return;
@@ -499,11 +559,24 @@ io.on("connection", (socket) => {
     });
 
     // PLAY AGAIN / NEXT ROUND
-    socket.on("nextRound", ({ roomCode, customWord, customHint }) => {
+    socket.on("nextRound", ({ roomCode, customWord, customHint, customPuzzle }) => {
         const room = rooms[roomCode];
         if (!room) return;
 
-        initNewRound(room, customWord, customHint);
+        touchRoom(roomCode);
+
+        let puzzle = customPuzzle;
+        if (!puzzle && customWord) {
+            puzzle = {
+                word: customWord,
+                hint: customHint,
+                maskedWord: customWord.split("").map(c => c === " " ? " " : null),
+                clueLetters: [],
+                creatorName: "Player"
+            };
+        }
+
+        initNewRound(room, puzzle);
         io.to(roomCode).emit("gameStarted", getSanitizedRoomState(room));
         io.to(roomCode).emit("roomUpdated", getSanitizedRoomState(room));
     });
@@ -521,6 +594,8 @@ io.on("connection", (socket) => {
     socket.on("sendChatMessage", ({ roomCode, text }) => {
         const room = rooms[roomCode];
         if (!room || !text || !text.trim()) return;
+
+        touchRoom(roomCode);
 
         const sender = room.players.find(p => p.id === socket.id) || { name: "Guest", avatar: "👾" };
         const msg = {
@@ -549,6 +624,7 @@ io.on("connection", (socket) => {
 
                 if (room.players.length === 0) {
                     if (room.timerInterval) clearInterval(room.timerInterval);
+                    if (room.inactivityTimer) clearInterval(room.inactivityTimer);
                     delete rooms[roomCode];
                     console.log(`[Room Deleted] ${roomCode} is empty.`);
                 } else {

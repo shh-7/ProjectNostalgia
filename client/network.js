@@ -166,6 +166,7 @@ class NetworkAdapter {
                     category: payload.category || "random",
                     mode: payload.mode || "standard",
                     timerSeconds: parseInt(payload.timerSeconds, 10) || 0,
+                    password: (payload.password || "").trim(),
                     gameState: "lobby",
                     roundNumber: 0,
                     hostId: "host",
@@ -240,6 +241,11 @@ class NetworkAdapter {
                     conn.send({ type: "joinError", error: "Room is already full." });
                     return;
                 }
+                // Password check in WebRTC mode
+                if (this.roomState.password && this.roomState.password !== (msg.password || "").trim()) {
+                    conn.send({ type: "joinError", error: "🔒 Incorrect room password." });
+                    return;
+                }
                 const guestPlayer = {
                     id: "guest",
                     name: (msg.playerName || "Player 2").substring(0, 20),
@@ -257,6 +263,14 @@ class NetworkAdapter {
 
             case "guessLetter":
                 this.processGuess(msg.letter, "guest");
+                break;
+
+            case "startGame":
+                this.webrtcStartGame(msg);
+                break;
+
+            case "nextRound":
+                this.webrtcNextRound(msg);
                 break;
 
             case "sendReaction":
@@ -317,7 +331,8 @@ class NetworkAdapter {
                     conn.send({
                         type: "guestJoin",
                         playerName: payload.playerName,
-                        avatar: payload.avatar
+                        avatar: payload.avatar,
+                        password: payload.password || ""
                     });
                 });
 
@@ -433,6 +448,7 @@ class NetworkAdapter {
                 maxLives: this.roomState.game.maxLives,
                 currentTurnId: this.roomState.game.turnPlayerId,
                 currentTurnName: this.roomState.game.turnPlayerName,
+                puzzleCreatorName: this.roomState.game.puzzleCreatorName,
                 turnExpiresAt: this.roomState.game.turnExpiresAt,
                 timerSeconds: this.roomState.timerSeconds,
                 winnerName: this.roomState.game.winnerName,
@@ -446,6 +462,7 @@ class NetworkAdapter {
             mode: this.roomState.mode,
             timerSeconds: this.roomState.timerSeconds,
             gameState: this.roomState.gameState,
+            roundNumber: this.roomState.roundNumber || 0,
             hostId: "host",
             players: this.roomState.players,
             game: maskedGame,
@@ -456,47 +473,59 @@ class NetworkAdapter {
     webrtcUpdateSettings(payload) {
         if (!this.isHost || !this.roomState) return;
         if (payload.category) this.roomState.category = payload.category;
+        if (payload.mode) this.roomState.mode = payload.mode;
         if (payload.timerSeconds !== undefined) this.roomState.timerSeconds = parseInt(payload.timerSeconds, 10);
         this.broadcastRoomState();
     }
 
     webrtcStartGame(payload) {
-        if (!this.isHost || !this.roomState) return;
-        this.initRound(payload.customWord, payload.customHint);
-        const state = this.getSanitizedState();
-        this.emitEvent("gameStarted", state);
-        this.connections.forEach(conn => {
-            if (conn.open) conn.send({ type: "gameStarted", state });
-        });
+        if (this.isHost) {
+            if (!this.roomState) return;
+            this.initRound(payload.customPuzzle);
+            const state = this.getSanitizedState();
+            this.emitEvent("gameStarted", state);
+            this.connections.forEach(conn => {
+                if (conn.open) conn.send({ type: "gameStarted", state });
+            });
+        } else if (this.connToHost && this.connToHost.open) {
+            this.connToHost.send({ type: "startGame", ...payload });
+        }
     }
 
-    initRound(customWord, customHint) {
-        let word, hint, catKey, catName;
-        if (customWord) {
-            word = customWord.toUpperCase().trim();
-            hint = customHint || "Custom secret word!";
+    initRound(customPuzzle) {
+        let word, hint, catKey, catName, maskedWord, clueLetters;
+
+        if (customPuzzle && customPuzzle.word) {
+            word = customPuzzle.word.toUpperCase().trim();
+            hint = customPuzzle.hint || "Custom secret puzzle!";
             catKey = "custom";
-            catName = "⚔️ Custom Word Duel";
+            catName = `✍️ ${customPuzzle.creatorName || "Player"}'s Custom Puzzle`;
+            maskedWord = customPuzzle.maskedWord;
+            clueLetters = customPuzzle.clueLetters || [];
         } else {
             const selected = window.NostalgiaWords.getRandomWord(this.roomState.category);
             word = selected.word;
             hint = selected.hint;
             catKey = selected.categoryKey;
             catName = selected.categoryName;
+            clueLetters = window.NostalgiaWords.getStartingClues(word, "normal");
+            maskedWord = word.split("").map(char => {
+                if (char === " ") return " ";
+                if (clueLetters.includes(char)) return char;
+                return null;
+            });
         }
 
-        const clueLetters = window.NostalgiaWords.getStartingClues(word, "normal");
-        const maskedWord = word.split("").map(char => {
-            if (char === " ") return " ";
-            if (clueLetters.includes(char)) return char;
-            return null;
-        });
+        const roundNum = (this.roomState.roundNumber || 0);
+        let turnIndex = 0;
+        if (customPuzzle && this.roomState.players.length > 1) {
+            const creatorIndex = this.roomState.players.findIndex(p => p.name === customPuzzle.creatorName);
+            turnIndex = creatorIndex === 0 ? 1 : 0;
+        } else if (this.roomState.players.length > 1) {
+            turnIndex = roundNum % this.roomState.players.length;
+        }
 
-        const turnIndex = this.roomState.players.length > 1
-            ? (this.roomState.roundNumber ? this.roomState.roundNumber % this.roomState.players.length : 0)
-            : 0;
-
-        const turnPlayer = this.roomState.players[turnIndex];
+        const turnPlayer = this.roomState.players[turnIndex] || this.roomState.players[0];
 
         this.roomState.game = {
             word,
@@ -510,13 +539,14 @@ class NetworkAdapter {
             currentTurnIndex: turnIndex,
             turnPlayerId: turnPlayer.id,
             turnPlayerName: turnPlayer.name,
+            puzzleCreatorName: customPuzzle ? customPuzzle.creatorName : null,
             turnExpiresAt: null,
             winnerName: null,
             isVictory: false
         };
 
         this.roomState.gameState = "playing";
-        this.roomState.roundNumber = (this.roomState.roundNumber || 0) + 1;
+        this.roomState.roundNumber = roundNum + 1;
     }
 
     webrtcGuessLetter(payload) {
@@ -618,13 +648,17 @@ class NetworkAdapter {
     }
 
     webrtcNextRound(payload) {
-        if (!this.isHost) return;
-        this.initRound(payload.customWord, payload.customHint);
-        const state = this.getSanitizedState();
-        this.emitEvent("gameStarted", state);
-        this.connections.forEach(conn => {
-            if (conn.open) conn.send({ type: "gameStarted", state });
-        });
+        if (this.isHost) {
+            if (!this.roomState) return;
+            this.initRound(payload ? payload.customPuzzle : null);
+            const state = this.getSanitizedState();
+            this.emitEvent("gameStarted", state);
+            this.connections.forEach(conn => {
+                if (conn.open) conn.send({ type: "gameStarted", state });
+            });
+        } else if (this.connToHost && this.connToHost.open) {
+            this.connToHost.send({ type: "nextRound", ...payload });
+        }
     }
 
     webrtcSendReaction(payload) {

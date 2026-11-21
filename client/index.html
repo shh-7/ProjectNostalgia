@@ -1,4 +1,4 @@
-<!DOCTYPE html>
+﻿<!DOCTYPE html>
 <html lang="en">
 
 <head>
@@ -7,6 +7,8 @@
     <title>Project Nostalgia - Retro Childhood Games Online</title>
     <link rel="stylesheet" href="index.css">
     <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🕹️</text></svg>">
+    <!-- Google Identity Services (for Google Sign-In) -->
+    <script src="https://accounts.google.com/gsi/client" async defer></script>
 </head>
 
 <body class="theme-paper">
@@ -268,9 +270,12 @@
 
                 <label for="roomModeSelect">GAME MODE:</label>
                 <select id="roomModeSelect" class="form-select">
-                    <option value="standard">📖 Standard Word Bank</option>
-                    <option value="custom">✍️ Custom Word Duel (You write words)</option>
+                    <option value="standard">📖 Standard Nostalgia Word Bank</option>
+                    <option value="custom">✍️ Custom Puzzle Creator (Create words, clues & place blanks)</option>
                 </select>
+
+                <label for="roomPasswordCreateInput">ROOM PASSWORD <small>(optional)</small></label>
+                <input type="text" id="roomPasswordCreateInput" class="form-select" placeholder="Leave blank for open room" maxlength="20" autocomplete="off">
             </div>
             <div class="modal-actions">
                 <button class="btn-secondary" data-close="createRoomModal">Cancel</button>
@@ -289,6 +294,8 @@
             <div class="modal-body">
                 <p>Enter the 5-character Room Code shared by your friend:</p>
                 <input type="text" id="joinCodeInput" maxlength="5" placeholder="e.g. 7X9K2" style="text-transform: uppercase; font-size: 24px; letter-spacing: 6px; text-align: center;">
+                <label for="joinPasswordInput" style="margin-top:14px; display:block;">ROOM PASSWORD <small>(if set by host)</small></label>
+                <input type="text" id="joinPasswordInput" class="form-select" placeholder="Leave blank if no password" maxlength="20" autocomplete="off">
             </div>
             <div class="modal-actions">
                 <button class="btn-secondary" data-close="joinRoomModal">Cancel</button>
@@ -371,6 +378,75 @@
         </div>
     </div>
 
+    <!-- 6. First-Visit Welcome / Onboarding Modal -->
+    <div class="modal-overlay" id="welcomeModal" style="display: none;">
+        <div class="modal-box">
+            <div class="modal-header" style="justify-content:center; border-bottom: none; padding-bottom:0;">
+                <div style="text-align:center; width:100%;">
+                    <div style="font-size:48px; margin-bottom:8px;">🕹️</div>
+                    <h3 style="font-size:22px;">Welcome to Project Nostalgia!</h3>
+                    <p style="font-size:13px; color:var(--text-muted); margin-top:4px;">The childhood paper games of the 90s & 2000s — now online.</p>
+                </div>
+            </div>
+            <div class="modal-body">
+                <label for="welcomeNameInput">WHAT SHOULD WE CALL YOU?</label>
+                <input type="text" id="welcomeNameInput" maxlength="20" placeholder="Enter your player name..." style="font-size:18px; letter-spacing:1px; text-align:center;">
+
+                <label style="margin-top:14px; display:block;">PICK YOUR RETRO AVATAR:</label>
+                <div class="avatar-grid" id="welcomeAvatarPicker" style="margin-top:6px;">
+                    <button class="avatar-option selected" data-avatar="👾">👾</button>
+                    <button class="avatar-option" data-avatar="🕹️">🕹️</button>
+                    <button class="avatar-option" data-avatar="📼">📼</button>
+                    <button class="avatar-option" data-avatar="🐱">🐱</button>
+                    <button class="avatar-option" data-avatar="🚀">🚀</button>
+                    <button class="avatar-option" data-avatar="🤠">🤠</button>
+                    <button class="avatar-option" data-avatar="🍕">🍕</button>
+                    <button class="avatar-option" data-avatar="🎸">🎸</button>
+                    <button class="avatar-option" data-avatar="🦊">🦊</button>
+                    <button class="avatar-option" data-avatar="🤖">🤖</button>
+                    <button class="avatar-option" data-avatar="🎮">🎮</button>
+                    <button class="avatar-option" data-avatar="⚡">⚡</button>
+                </div>
+            </div>
+            <div class="modal-actions" style="flex-direction:column; gap:10px;">
+                <button class="btn-primary" id="welcomeSaveBtn" style="width:100%; font-size:16px;">
+                    🎮 Let's Play!
+                </button>
+                <div class="login-divider"><span>or sign in for cloud saves</span></div>
+                <button class="btn-google-signin" id="googleSignInBtn">
+                    <svg width="18" height="18" viewBox="0 0 48 48"><path fill="#EA4335" d="M24 9.5c3.54 0 6.71 1.22 9.21 3.6l6.85-6.85C35.9 2.38 30.47 0 24 0 14.62 0 6.51 5.38 2.56 13.22l7.98 6.19C12.43 13.72 17.74 9.5 24 9.5z"/><path fill="#4285F4" d="M46.98 24.55c0-1.57-.15-3.09-.38-4.55H24v9.02h12.94c-.58 2.96-2.26 5.48-4.78 7.18l7.73 6c4.51-4.18 7.09-10.36 7.09-17.65z"/><path fill="#FBBC05" d="M10.53 28.59c-.48-1.45-.76-2.99-.76-4.59s.27-3.14.76-4.59l-7.98-6.19C.92 16.46 0 20.12 0 24c0 3.88.92 7.54 2.56 10.78l7.97-6.19z"/><path fill="#34A853" d="M24 48c6.48 0 11.93-2.13 15.89-5.81l-7.73-6c-2.15 1.45-4.92 2.3-8.16 2.3-6.26 0-11.57-4.22-13.47-9.91l-7.98 6.19C6.51 42.62 14.62 48 24 48z"/><path fill="none" d="M0 0h48v48H0z"/></svg>
+                    Continue with Google
+                </button>
+                <button class="btn-email-signin" id="emailSignInBtn">
+                    ✉️ Continue with Email
+                </button>
+            </div>
+        </div>
+    </div>
+
+
+    <!-- Email Login Modal -->
+    <div class="modal-overlay" id="emailLoginModal" style="display:none;">
+      <div class="modal-box">
+        <div class="modal-header">
+          <h3>&#x2709;&#xFE0F; Sign In with Email</h3>
+          <button class="modal-close-btn" data-close="emailLoginModal">&#x00D7;</button>
+        </div>
+        <div class="modal-body email-login-modal-body">
+          <p style="font-size:13px;color:var(--text-muted);margin:0 0 12px;">
+            Your name will be remembered on this device. No password needed.
+          </p>
+          <label for="emailLoginNameInput">YOUR NAME</label>
+          <input type="text" id="emailLoginNameInput" class="room-code-input" maxlength="20" placeholder="e.g. RetroKid99" style="margin-bottom:10px;">
+          <label for="emailLoginInput">EMAIL ADDRESS</label>
+          <input type="email" id="emailLoginInput" class="room-code-input" placeholder="you@example.com">
+        </div>
+        <div class="modal-actions">
+          <button class="btn-secondary" data-close="emailLoginModal">Cancel</button>
+          <button class="btn-primary" id="emailLoginSubmitBtn">Save &amp; Continue</button>
+        </div>
+      </div>
+    </div>
     <!-- Scripts (Served locally for 100% reliable offline/online operation) -->
     <script src="words.js"></script>
     <script src="confetti.js"></script>
@@ -383,3 +459,6 @@
 </body>
 
 </html>
+
+
+

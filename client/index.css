@@ -657,3 +657,149 @@ body {
         grid-template-columns: repeat(4, 1fr);
     }
 }
+
+
+/* ===================================================
+   NEW FEATURES: Google Sign-In, Password Fields,
+   Login Divider, Email Login, Share Button
+   =================================================== */
+
+/* Login divider in welcome modal */
+.login-divider {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin: 2px 0;
+}
+.login-divider::before,
+.login-divider::after {
+    content: "";
+    flex: 1;
+    height: 1px;
+    background: var(--border-color);
+}
+.login-divider span {
+    font-size: 11px;
+    color: var(--text-muted);
+    font-weight: 600;
+    letter-spacing: 0.5px;
+    white-space: nowrap;
+}
+
+/* Google Sign-In Button */
+.btn-google-signin {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 10px;
+    width: 100%;
+    padding: 10px 16px;
+    background: #fff;
+    border: 1.5px solid #dadce0;
+    border-radius: 8px;
+    font-size: 14px;
+    font-weight: 600;
+    color: #3c4043;
+    cursor: pointer;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.12);
+    transition: box-shadow 0.15s, background 0.15s;
+    font-family: inherit;
+}
+.btn-google-signin:hover {
+    background: #f8f9fa;
+    box-shadow: 0 2px 6px rgba(0,0,0,0.18);
+}
+body.theme-midnight .btn-google-signin {
+    background: #2a2a35;
+    border-color: #555;
+    color: #e0e0e0;
+}
+body.theme-midnight .btn-google-signin:hover {
+    background: #343444;
+}
+
+/* Email Sign-In Button */
+.btn-email-signin {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    width: 100%;
+    padding: 10px 16px;
+    background: var(--surface-secondary);
+    border: 1.5px solid var(--border-color);
+    border-radius: 8px;
+    font-size: 14px;
+    font-weight: 600;
+    color: var(--text-primary);
+    cursor: pointer;
+    transition: background 0.15s, box-shadow 0.15s;
+    font-family: inherit;
+    box-shadow: 1.5px 1.5px 0 var(--shadow-color);
+}
+.btn-email-signin:hover {
+    background: var(--accent-color);
+    color: #fff;
+    box-shadow: 2px 2px 0 var(--shadow-color);
+}
+
+/* Email Login Modal */
+.email-login-modal-body {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+.email-login-modal-body input {
+    width: 100%;
+    padding: 10px 14px;
+    font-size: 15px;
+    border: var(--border-width) solid var(--border-color);
+    border-radius: 8px;
+    background: var(--surface-secondary);
+    color: var(--text-primary);
+    font-family: inherit;
+    outline: none;
+    box-sizing: border-box;
+}
+.email-login-modal-body input:focus {
+    border-color: var(--accent-color);
+}
+
+/* Signed-in profile pill enhancement */
+.nav-pill.signed-in {
+    border-color: #2e7d32;
+    background: #e8f5e9;
+}
+body.theme-midnight .nav-pill.signed-in {
+    background: #1b3a1f;
+    border-color: #81c784;
+}
+.signed-in-badge {
+    font-size: 10px;
+    background: #2e7d32;
+    color: #fff;
+    border-radius: 4px;
+    padding: 1px 5px;
+    font-weight: 800;
+    letter-spacing: 0.5px;
+}
+
+/* Password input in modals */
+.form-select[type="text"][id$="PasswordCreateInput"],
+.form-select[type="text"][id$="PasswordInput"] {
+    font-size: 14px;
+    letter-spacing: 1px;
+    margin-top: 2px;
+}
+
+/* WhatsApp share button in room */
+.btn-whatsapp {
+    background: #25D366;
+    color: #fff;
+    border: none;
+    font-weight: 700;
+}
+.btn-whatsapp:hover {
+    background: #1ebe5a;
+    transform: translateY(-1px);
+}
